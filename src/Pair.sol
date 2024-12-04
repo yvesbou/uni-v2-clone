@@ -82,7 +82,9 @@ contract Pair is ERC20 {
         // mint
         _mint(receiver, lpTokensToMint);
 
-        _update(reserve0_, reserve1_, asset0_, asset1_); // supply old reserve values, supplied amounts
+        uint256 newReserve0 = reserve0_ + asset0_;
+        uint256 newReserve1 = reserve1_ + asset1_;
+        _update(newReserve, newReserve1); // supply old reserve values, supplied amounts
 
         emit LiquiditySupplied(msg.sender, asset0_, asset1_, receiver);
 
@@ -123,5 +125,8 @@ contract Pair is ERC20 {
     /////////////////////////////////
     /////////////////////////////////
 
-    function _update() internal {}
+    function _update(uint256 newReserve0_, uint256 newReserve1_) internal {
+        reserve0 = newReserve0_;
+        reserve1 = newReserve1_;
+    }
 }
