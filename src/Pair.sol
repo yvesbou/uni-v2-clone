@@ -5,7 +5,10 @@ import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
 // todo
 /**
  * - add no-reentrant
+ * - using safeerc20 to send tokens (redeem liquidity)
+ * - using safeMint for minting to recepient (supplyLiquidity)
  * - emit events for every storage change
+ * - find out where rounding down/up is required
  */
 
 /**
@@ -19,14 +22,16 @@ contract Pair is ERC20 {
 
     uint256 public precisionAsset0;
     uint256 public precisionAsset1;
+    uint256 constant LP_TOKEN_PRECISION = 1e18;
 
     uint256 public reserve0;
     uint256 public reserve1;
 
     error ZeroAddressNotAllowed();
-
+    error NotEnoughLPTokens();
 
     event LiquiditySupplied(indexed address user, indexed uint256 amount0, indexed uint256 amount1, indexed address receiver);
+    event LiquidityRedeemed(indexed address user, indexed uint256 amount0, indexed uint256 amount1, indexed address receiver);
 
     constructor(address asset0_, address asset1_) {
         asset0 = IERC20(asset0_);
@@ -96,19 +101,37 @@ contract Pair is ERC20 {
         asset1.transferFrom(msg.sender, address(this), asset1_);
     }
 
-    function redeemLiquidity() public {
+    /// @notice A user can redeem the supplied liquidity inclusive the accrued fees since deployment
+    /// @param amountLPToken the amount of LP tokens the user wants to return
+    /// @param receiverOfAssets the address where the funds should be sent to
+    function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public {
         // CEI
 
         // checks
-
+        if (receiver == address(0)) revert ZeroAddressNotAllowed();
+        uint256 lpTokenAvailable = balanceOf(msg.sender);
+        if (lpTokenAvailable < amountLPToken) revert NotEnoughLPTokens();
+        
         // effect
+        uint256 totaLPTokens = totalSupply();
+        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+
+        uint256 fractionOfBurning = amountLPToken * LP_TOKEN_PRECISION / totalLPTokens;
+
+        uint256 amountOfAsset0ToReturn = reserve0 * fractionOfBurning / LP_TOKEN_PRECISION;
+        uint256 amountOfAsset1ToReturn = reserve1 * fractionOfBurning / LP_TOKEN_PRECISION;
 
         // burn
+        _burn(msg.sender, amountLPToken);
+
+        emit LiquidityRedeemed(msg.sender, amountOfAsset0ToReturn, amountOfAsset1ToReturn, receiverOfAssets);
 
         // interactions
 
         // safeTransferFrom asset0
+        asset0.transferFrom(address(this), receiverOfAssets, amountOfAsset0ToReturn);
         // safeTransferFrom asset1
+        asset1.transferFrom(address(this), receiverOfAssets, amountOfAsset1ToReturn);
     }
 
     /////////////////////////////////
@@ -117,7 +140,9 @@ contract Pair is ERC20 {
     /////////////////////////////////
     /////////////////////////////////
 
-    function getReserves() public view {}
+    function getReserves() public view returns(uint256, uint256) {
+        return (reserve0, reserve1);
+    }
 
     /////////////////////////////////
     /////////////////////////////////
