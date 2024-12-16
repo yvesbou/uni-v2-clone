@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 
+pragma solidity 0.8.28;
+
 import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/IERC20.sol";
 
 // todo
 /**
@@ -8,7 +11,12 @@ import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
  * - using safeerc20 to send tokens (redeem liquidity)
  * - using safeMint for minting to recepient (supplyLiquidity)
  * - emit events for every storage change
- * - find out where rounding down/up is required
+ * - find out where rounding down/up is required (always in favor of protocol)
+ * - take care of inflation attack
+ * - uint112 vs uint256 ?
+ * - TWAP (price0CumulativeLast..)
+ * - flashloan function
+ * - fee for LPs à la V3?
  */
 
 /**
@@ -17,35 +25,101 @@ import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
  *  -
  */
 contract Pair is ERC20 {
-    IERC20 public asset0;
-    IERC20 public asset1;
+    ERC20 public asset0;
+    ERC20 public asset1;
 
     uint256 public precisionAsset0;
     uint256 public precisionAsset1;
     uint256 constant LP_TOKEN_PRECISION = 1e18;
+    uint256 constant FEE_NUMERATOR = 99; // 1%
+    uint256 constant FEE_DENOMINATOR = 100; // 1%
 
     uint256 public reserve0;
     uint256 public reserve1;
 
     error ZeroAddressNotAllowed();
     error NotEnoughLPTokens();
+    error InvalidAsset(address asset);
+    error InsufficientAmountOut(uint256 amountOutRequired, uint256 amountOutEffective);
+    error NotEnoughLiquidityForSwap();
+    error ViolationConstantK();
 
-    event LiquiditySupplied(indexed address user, indexed uint256 amount0, indexed uint256 amount1, indexed address receiver);
-    event LiquidityRedeemed(indexed address user, indexed uint256 amount0, indexed uint256 amount1, indexed address receiver);
+    event LiquiditySupplied(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
+    event LiquidityRedeemed(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
+    event Swap(
+        address indexed spender,
+        address indexed receiver,
+        address indexed buyingAsset,
+        uint256 amountIn,
+        uint256 amountOut
+    );
 
-    constructor(address asset0_, address asset1_) {
-        asset0 = IERC20(asset0_);
-        asset1 = IERC20(asset1_);
+    constructor(string memory name_, string memory symbol_, address asset0_, address asset1_) ERC20(name_, symbol_) {
+        asset0 = ERC20(asset0_);
+        asset1 = ERC20(asset1_);
         precisionAsset0 = 10 ** asset0.decimals();
         precisionAsset1 = 10 ** asset1.decimals();
     }
 
-    function swap() public {}
+    /// @notice Allows a user to specify which asset he/she wants to buy/sell and how much he/she should get out of it
+    /// @notice swapping takes a 1% fee
+    /// @param buyingAsset specifies which asset is bought
+    /// @param amountIn specifies the amount which is sold
+    /// @param amountOutMin specifies the amount that the user wants to get out
+    function swap(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin) public {
+        // CEI
+
+        // checks
+
+        if (receiver == address(0)) revert ZeroAddressNotAllowed();
+
+        if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
+
+        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+
+        uint256 currentPrice = reserve0_ * precisionAsset1 / reserve1_; // has precision of asset0, precision asset1 cancels out
+
+        // if asset0 -> asset1, amountIn / price, since price = how much asset0 to get asset1
+        // 3000USDC -> weth, price 3000 USDC per ether, 3000/price = 1
+        //
+        uint256 computedAmountOut = buyingAsset == address(asset1)
+            ? (amountIn * precisionAsset0 * FEE_NUMERATOR) / (currentPrice * FEE_DENOMINATOR)
+            : (amountIn * currentPrice * FEE_NUMERATOR) / (precisionAsset0 * FEE_DENOMINATOR);
+        if (computedAmountOut < amountOutMin) revert InsufficientAmountOut(amountOutMin, computedAmountOut);
+
+        // check if pool has enough supply in both assets
+        if (
+            (buyingAsset == address(asset0) && computedAmountOut > reserve0_)
+                || (buyingAsset == address(asset1) && computedAmountOut > reserve1_)
+        ) {
+            revert NotEnoughLiquidityForSwap();
+        }
+
+        // effects
+        uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - computedAmountOut : reserve0_ + amountIn;
+        uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - computedAmountOut : reserve1_ + amountIn;
+
+        // check if K respected
+        if (reserve0_ * reserve1_ > newReserve0 * newReserve1) revert ViolationConstantK();
+
+        _update(newReserve0, newReserve1);
+
+        // interactions
+        // transfer buying asset to the user & transfer selling asset to the pool
+        buyingAsset == address(asset0)
+            ? asset0.transfer(receiver, computedAmountOut) //  make safeTransfer
+            : asset0.transferFrom(msg.sender, address(this), amountIn);
+        buyingAsset == address(asset1)
+            ? asset1.transfer(receiver, computedAmountOut) //  make safeTransfer
+            : asset1.transferFrom(msg.sender, address(this), amountIn);
+
+        emit Swap(msg.sender, receiver, buyingAsset, amountIn, computedAmountOut);
+    }
 
     /// @notice User can supply liquidity to a pool directly
     /// @dev The user needs to make sure that the ratio of the supplied asset is equal to the current ratio
-    /// @param asset0 amount of asset0 to be supplied to reserve0
-    /// @param asset1 amount of asset1 to be supplied to reserve1
+    /// @param asset0_ amount of asset0 to be supplied to reserve0
+    /// @param asset1_ amount of asset1 to be supplied to reserve1
     /// @param receiver account that will receive LP tokens
     function provideLiquidity(uint256 asset0_, uint256 asset1_, address receiver) public {
         // CEI
@@ -89,15 +163,14 @@ contract Pair is ERC20 {
 
         uint256 newReserve0 = reserve0_ + asset0_;
         uint256 newReserve1 = reserve1_ + asset1_;
-        _update(newReserve, newReserve1); // supply old reserve values, supplied amounts
+        _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
 
         emit LiquiditySupplied(msg.sender, asset0_, asset1_, receiver);
 
         // interactions
 
-        // safeTransferFrom asset0
+        // no safeTransferFrom as this contract is the receiver
         asset0.transferFrom(msg.sender, address(this), asset0_);
-        // safeTransferFrom asset1
         asset1.transferFrom(msg.sender, address(this), asset1_);
     }
 
@@ -108,18 +181,18 @@ contract Pair is ERC20 {
         // CEI
 
         // checks
-        if (receiver == address(0)) revert ZeroAddressNotAllowed();
+        if (receiverOfAssets == address(0)) revert ZeroAddressNotAllowed();
         uint256 lpTokenAvailable = balanceOf(msg.sender);
         if (lpTokenAvailable < amountLPToken) revert NotEnoughLPTokens();
-        
+
         // effect
-        uint256 totaLPTokens = totalSupply();
+        uint256 totalLPTokens = totalSupply();
         (uint256 reserve0_, uint256 reserve1_) = getReserves();
 
         uint256 fractionOfBurning = amountLPToken * LP_TOKEN_PRECISION / totalLPTokens;
 
-        uint256 amountOfAsset0ToReturn = reserve0 * fractionOfBurning / LP_TOKEN_PRECISION;
-        uint256 amountOfAsset1ToReturn = reserve1 * fractionOfBurning / LP_TOKEN_PRECISION;
+        uint256 amountOfAsset0ToReturn = reserve0_ * fractionOfBurning / LP_TOKEN_PRECISION;
+        uint256 amountOfAsset1ToReturn = reserve1_ * fractionOfBurning / LP_TOKEN_PRECISION;
 
         // burn
         _burn(msg.sender, amountLPToken);
@@ -140,7 +213,7 @@ contract Pair is ERC20 {
     /////////////////////////////////
     /////////////////////////////////
 
-    function getReserves() public view returns(uint256, uint256) {
+    function getReserves() public view returns (uint256, uint256) {
         return (reserve0, reserve1);
     }
 
@@ -150,8 +223,8 @@ contract Pair is ERC20 {
     /////////////////////////////////
     /////////////////////////////////
 
-    function _update(uint256 newReserve0_, uint256 newReserve1_) internal {
-        reserve0 = newReserve0_;
-        reserve1 = newReserve1_;
+    function _update(uint256 newReserve0, uint256 newReserve1) internal {
+        reserve0 = newReserve0;
+        reserve1 = newReserve1;
     }
 }
