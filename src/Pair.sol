@@ -4,13 +4,11 @@ pragma solidity 0.8.28;
 
 import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
 import {IERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 
 // todo
 /**
- * - add no-reentrant
- * - using safeerc20 to send tokens (redeem liquidity)
- * - using safeMint for minting to recepient (supplyLiquidity)
- * - emit events for every storage change
  * - find out where rounding down/up is required (always in favor of protocol)
  * - take care of inflation attack
  * - uint112 vs uint256 ?
@@ -24,7 +22,9 @@ import {IERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/IERC20.sol";
  *  - the precision of a supplied asset cannot change
  *  -
  */
-contract Pair is ERC20 {
+contract Pair is ReentrancyGuard, ERC20 {
+    using SafeERC20 for ERC20;
+
     ERC20 public asset0;
     ERC20 public asset1;
 
@@ -66,7 +66,7 @@ contract Pair is ERC20 {
     /// @param buyingAsset specifies which asset is bought
     /// @param amountIn specifies the amount which is sold
     /// @param amountOutMin specifies the amount that the user wants to get out
-    function swap(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin) public {
+    function swap(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin) public nonReentrant {
         // CEI
 
         // checks
@@ -106,12 +106,14 @@ contract Pair is ERC20 {
 
         // interactions
         // transfer buying asset to the user & transfer selling asset to the pool
-        buyingAsset == address(asset0)
-            ? asset0.transfer(receiver, computedAmountOut) //  make safeTransfer
-            : asset0.transferFrom(msg.sender, address(this), amountIn);
-        buyingAsset == address(asset1)
-            ? asset1.transfer(receiver, computedAmountOut) //  make safeTransfer
-            : asset1.transferFrom(msg.sender, address(this), amountIn);
+        if (buyingAsset == address(asset0)) {
+            asset0.safeTransfer(receiver, computedAmountOut);
+            asset1.transferFrom(msg.sender, address(this), amountIn);
+        } else {
+            // buyingAsset == asset0
+            asset1.safeTransfer(receiver, computedAmountOut);
+            asset0.transferFrom(msg.sender, address(this), amountIn);
+        }
 
         emit Swap(msg.sender, receiver, buyingAsset, amountIn, computedAmountOut);
     }
@@ -121,7 +123,7 @@ contract Pair is ERC20 {
     /// @param asset0_ amount of asset0 to be supplied to reserve0
     /// @param asset1_ amount of asset1 to be supplied to reserve1
     /// @param receiver account that will receive LP tokens
-    function provideLiquidity(uint256 asset0_, uint256 asset1_, address receiver) public {
+    function provideLiquidity(uint256 asset0_, uint256 asset1_, address receiver) public nonReentrant {
         // CEI
 
         // checks
@@ -177,7 +179,7 @@ contract Pair is ERC20 {
     /// @notice A user can redeem the supplied liquidity inclusive the accrued fees since deployment
     /// @param amountLPToken the amount of LP tokens the user wants to return
     /// @param receiverOfAssets the address where the funds should be sent to
-    function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public {
+    function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public nonReentrant {
         // CEI
 
         // checks
@@ -202,9 +204,9 @@ contract Pair is ERC20 {
         // interactions
 
         // safeTransferFrom asset0
-        asset0.transferFrom(address(this), receiverOfAssets, amountOfAsset0ToReturn);
+        asset0.safeTransferFrom(address(this), receiverOfAssets, amountOfAsset0ToReturn);
         // safeTransferFrom asset1
-        asset1.transferFrom(address(this), receiverOfAssets, amountOfAsset1ToReturn);
+        asset1.safeTransferFrom(address(this), receiverOfAssets, amountOfAsset1ToReturn);
     }
 
     /////////////////////////////////
