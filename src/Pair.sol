@@ -11,7 +11,6 @@ import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGua
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
  * - take care of inflation attack
- * - uint112 vs uint256 ?
  * - TWAP (price0CumulativeLast..)
  * - flashloan function
  * - fee for LPs à la V3?
