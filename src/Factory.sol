@@ -28,7 +28,7 @@ contract Factory {
         string memory pairName = string.concat(ERC20(token0).name(), "_", ERC20(token1).name());
         string memory pairSymbol = string.concat(ERC20(token0).symbol(), "_", ERC20(token1).symbol());
 
-        Pair newPool = new Pair(pairName, pairSymbol, tokenA, tokenB);
+        Pair newPool = new Pair(pairName, pairSymbol, token0, token1);
 
         pairRegistry[token0][token1] = address(newPool);
         pairRegistry[token1][token0] = address(newPool);
