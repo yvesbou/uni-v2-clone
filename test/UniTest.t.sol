@@ -140,7 +140,7 @@ contract UniTest is Test {
         uint256 totalLPTokens = Pair(pair).totalSupply();
         assertEq(totalLPTokens, 1200e18);
 
-        // first LP deposits
+        // second LP deposits
         vm.startPrank(lp2);
         TOKEN_A.approve(pair, MAX);
         TOKEN_B.approve(pair, MAX);
@@ -156,5 +156,61 @@ contract UniTest is Test {
         uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
         assertEq(balanceLP1, 1200e18);
         assertEq(balanceLP2, 600e18);
+    }
+
+    function test_lp_redeems_before_1st_swap() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        uint256 totalLPTokens = Pair(pair).totalSupply();
+        assertEq(totalLPTokens, 1200e18);
+
+        // second LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(500e18, 100e18, lp2);
+
+        vm.stopPrank();
+
+        // first LP re-claims all tokens again
+        vm.startPrank(lp);
+        Pair(pair).approve(pair, MAX);
+        Pair(pair).redeemLiquidity(1200e18, lp);
+        vm.stopPrank();
+
+        totalLPTokens = Pair(pair).totalSupply();
+        // double amount of LP tokens
+        assertEq(totalLPTokens, 600e18); // 0 + 600
+        uint256 balanceLP1 = Pair(pair).balanceOf(lp);
+        uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
+        assertEq(balanceLP1, 0);
+        assertEq(balanceLP2, 600e18);
+
+        uint256 balanceToken0 = TOKEN_B.balanceOf(lp);
+        uint256 balanceToken1 = TOKEN_A.balanceOf(lp);
+        assertEq(balanceToken0, 1000e18);
+        assertEq(balanceToken1, 200e18);
     }
 }

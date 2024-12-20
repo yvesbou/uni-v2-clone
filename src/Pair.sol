@@ -200,10 +200,8 @@ contract Pair is ReentrancyGuard, ERC20 {
         uint256 totalLPTokens = totalSupply();
         (uint256 reserve0_, uint256 reserve1_) = getReserves();
 
-        uint256 fractionOfBurning = amountLPToken * LP_TOKEN_PRECISION / totalLPTokens;
-
-        uint256 amountOfAsset0ToReturn = reserve0_ * fractionOfBurning / LP_TOKEN_PRECISION;
-        uint256 amountOfAsset1ToReturn = reserve1_ * fractionOfBurning / LP_TOKEN_PRECISION;
+        uint256 amountOfAsset0ToReturn = reserve0_ * amountLPToken / totalLPTokens;
+        uint256 amountOfAsset1ToReturn = reserve1_ * amountLPToken / totalLPTokens;
 
         // burn
         _burn(msg.sender, amountLPToken);
@@ -212,10 +210,10 @@ contract Pair is ReentrancyGuard, ERC20 {
 
         // interactions
 
-        // safeTransferFrom asset0
-        asset0.safeTransferFrom(address(this), receiverOfAssets, amountOfAsset0ToReturn);
-        // safeTransferFrom asset1
-        asset1.safeTransferFrom(address(this), receiverOfAssets, amountOfAsset1ToReturn);
+        // safeTransfer asset0
+        asset0.safeTransfer(receiverOfAssets, amountOfAsset0ToReturn);
+        // safeTransfer asset1
+        asset1.safeTransfer(receiverOfAssets, amountOfAsset1ToReturn);
     }
 
     /////////////////////////////////
