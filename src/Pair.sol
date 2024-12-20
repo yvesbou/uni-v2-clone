@@ -151,10 +151,20 @@ contract Pair is ReentrancyGuard, ERC20 {
              *         asset0 taken for LP eligibility:
              *
              *         amount asset0 Supplied / reserve0
+             *
+             *          1000, 200 -> 1200 lp tokens
              */
-            lpTokensToMint = asset0_ * precisionAsset1 / asset1_ > reserve0_ * precisionAsset0 / reserve1_
-                ? asset0_ * precisionAsset0 / reserve0_
-                : asset1_ * precisionAsset1 / reserve1_;
+            uint256 ratio;
+            if (asset0_ * precisionAsset1 / asset1_ > reserve0_ * precisionAsset1 / reserve1_) {
+                // asset1 undervalued
+                ratio = asset1_ * precisionAsset1 / reserve1_;
+                lpTokensToMint = ratio * totalSupply() / precisionAsset1;
+            } else {
+                // asset0 undervalued, or equal ratio (then it doesnt matter)
+                ratio = asset0_ * precisionAsset0 / reserve0_;
+                // if same amount as already in the pool, the total supply is doubled
+                lpTokensToMint = ratio * totalSupply() / precisionAsset0;
+            }
         }
 
         // effect

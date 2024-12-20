@@ -3,10 +3,10 @@ pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std-1.9.2/src/Test.sol";
 
-import {IPair, IFactory} from "../src/Interfaces.sol";
 import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
 import {Token} from "../src/Token.sol";
 import {Factory} from "../src/Factory.sol";
+import {Pair} from "../src/Pair.sol";
 
 contract UniTest is Test {
     uint256 mainnetFork; // access to real deployed tokens
@@ -14,6 +14,7 @@ contract UniTest is Test {
 
     address owner = address(1);
     address lp = address(16);
+    address lp2 = address(17);
     address trader = address(8);
 
     string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
@@ -46,7 +47,7 @@ contract UniTest is Test {
         assertTrue(address(pair) != address(0), "Address should not be zero");
     }
 
-    function test_supply() public {
+    function test_simple_supply() public {
         factory.deployPair(address(TOKEN_A), address(TOKEN_B));
         address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
 
@@ -61,6 +62,99 @@ contract UniTest is Test {
         TOKEN_A.approve(pair, MAX);
         TOKEN_B.approve(pair, MAX);
 
-        IPair(pair).provideLiquidity(1000e18, 200e18, lp); // this fails
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        uint256 totalLPTokens = Pair(pair).totalSupply();
+        assertEq(totalLPTokens, 1200e18);
+    }
+
+    function test_two_supply_same_amount() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        uint256 totalLPTokens = Pair(pair).totalSupply();
+        assertEq(totalLPTokens, 1200e18);
+
+        // first LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
+
+        vm.stopPrank();
+
+        totalLPTokens = Pair(pair).totalSupply();
+        // double amount of LP tokens
+        assertEq(totalLPTokens, 2400e18);
+        uint256 balanceLP1 = Pair(pair).balanceOf(lp);
+        uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
+        assertEq(balanceLP1, balanceLP2);
+    }
+
+    // first LP deposits 2x of second LP
+    function test_two_supply_different_amount() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        uint256 totalLPTokens = Pair(pair).totalSupply();
+        assertEq(totalLPTokens, 1200e18);
+
+        // first LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(500e18, 100e18, lp2);
+
+        vm.stopPrank();
+
+        totalLPTokens = Pair(pair).totalSupply();
+        // double amount of LP tokens
+        assertEq(totalLPTokens, 1800e18); // 1200 + 600
+        uint256 balanceLP1 = Pair(pair).balanceOf(lp);
+        uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
+        assertEq(balanceLP1, 1200e18);
+        assertEq(balanceLP2, 600e18);
     }
 }
