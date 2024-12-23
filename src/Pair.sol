@@ -41,7 +41,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     error InvalidAsset(address asset);
     error InsufficientAmountOut(uint256 amountOutRequired, uint256 amountOutEffective);
     error NotEnoughLiquidityForSwap();
-    error ViolationConstantK();
+    error ViolationConstantK(uint256 left, uint256 right);
 
     event LiquiditySupplied(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
     event LiquidityRedeemed(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
@@ -82,8 +82,8 @@ contract Pair is ReentrancyGuard, ERC20 {
         // 3000USDC -> weth, price 3000 USDC per ether, 3000/price = 1
         //
         uint256 computedAmountOut = buyingAsset == address(asset1)
-            ? (amountIn * precisionAsset0 * FEE_NUMERATOR) / (currentPrice * FEE_DENOMINATOR)
-            : (amountIn * currentPrice * FEE_NUMERATOR) / (precisionAsset0 * FEE_DENOMINATOR);
+            ? (amountIn * FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
+            : (amountIn * reserve0_ * FEE_NUMERATOR) / (reserve1_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn);
         if (computedAmountOut < amountOutMin) revert InsufficientAmountOut(amountOutMin, computedAmountOut);
 
         // check if pool has enough supply in both assets
@@ -97,9 +97,10 @@ contract Pair is ReentrancyGuard, ERC20 {
         // effects
         uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - computedAmountOut : reserve0_ + amountIn;
         uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - computedAmountOut : reserve1_ + amountIn;
-
         // check if K respected
-        if (reserve0_ * reserve1_ > newReserve0 * newReserve1) revert ViolationConstantK();
+        if (reserve0_ * reserve1_ > newReserve0 * newReserve1) {
+            revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 * newReserve1);
+        }
 
         _update(newReserve0, newReserve1);
 

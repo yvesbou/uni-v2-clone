@@ -95,7 +95,7 @@ contract UniTest is Test {
         uint256 totalLPTokens = Pair(pair).totalSupply();
         assertEq(totalLPTokens, 1200e18);
 
-        // first LP deposits
+        // second LP deposits
         vm.startPrank(lp2);
         TOKEN_A.approve(pair, MAX);
         TOKEN_B.approve(pair, MAX);
@@ -213,4 +213,56 @@ contract UniTest is Test {
         assertEq(balanceToken0, 1000e18);
         assertEq(balanceToken1, 200e18);
     }
+
+    function test_simple_swap() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        TOKEN_A.mint(trader, 200e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        uint256 totalLPTokens = Pair(pair).totalSupply();
+        assertEq(totalLPTokens, 1200e18);
+
+        // second LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
+
+        vm.stopPrank();
+
+        vm.startPrank(trader);
+        TOKEN_A.approve(pair, MAX);
+        // dy = 131.56 = ( k / (x-dx) ) - y
+        Pair(pair).swap(trader, address(TOKEN_B), 132e18, 490e18); // expected out is 1% less than current price -> fee
+        vm.stopPrank();
+    }
+
+    // TODO
+    /**
+     * swap
+     * swap different rate
+     * swap and redeem
+     */
 }
