@@ -254,14 +254,25 @@ contract UniTest is Test {
 
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
-        // dy = 131.56 = ( k / (x-dx) ) - y
-        Pair(pair).swap(trader, address(TOKEN_B), 132e18, 490e18); // expected out is 1% less than current price -> fee
+        // see readme chapter ## Amount Out
+
+        // price before trade: 5
+
+        Pair(pair).swap(trader, address(TOKEN_B), 100e18, 396e18); // expected out is 1% less than current price -> fee
         vm.stopPrank();
+
+        // price after trade:
+        uint256 reserve0 = Pair(pair).reserve0();
+        uint256 reserve1 = Pair(pair).reserve1();
+        uint256 price = (reserve0 * 1e18) / reserve1;
+        console.log(price);
+        assertLt(price, 5e18);
+
+        assertGt(TOKEN_B.balanceOf(trader), 396e18);
     }
 
     // TODO
     /**
-     * swap
      * swap different rate
      * swap and redeem
      */

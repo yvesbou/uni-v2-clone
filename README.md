@@ -1,3 +1,57 @@
+# Uni V2 Clone (Educational Purpose)
+
+## Amount Out
+
+Without fees
+
+$$
+Δy=\frac{y \cdot Δx}{x+Δx}
+$$
+
+As in test `test_simple_swap()` the trader wants to trade 100 of `token A` for `token B`,
+given that the reserves are 2000 for `token A` and 400 for `token B` and a fee for LPs of 1% (99/100):
+
+$$
+396.79 = \frac{99 \cdot 100 \cdot 2000}{400 \cdot 100 + 99 \cdot 100}
+$$
+
+### Derivation of the above formula
+
+1. Start with the constant product formula after a swap:
+
+   $$
+   (x + \Delta x) \cdot (y - \Delta y) = x \cdot y
+   $$
+
+2. Expand the left-hand side:
+
+   $$
+   x \cdot y - x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = x \cdot y
+   $$
+
+3. Cancel $(x \cdot y)$ on both sides:
+
+   $$
+   -x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = 0
+   $$
+
+4. Assume $( \Delta x \cdot \Delta y \approx 0 $) for small swaps:
+
+   $$
+   -x \cdot \Delta y + y \cdot \Delta x = 0
+   $$
+
+5. Solve for $( \Delta y $):
+
+   $$
+   \Delta y = \frac{y \cdot \Delta x}{x}
+   $$
+
+6. Account for the updated reserve $(x + \Delta x$):
+   $$
+   \Delta y = \frac{y \cdot \Delta x}{x + \Delta x}
+   $$
+
 ## Foundry with Soldeer Template
 
 ```shell

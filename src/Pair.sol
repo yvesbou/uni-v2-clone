@@ -11,9 +11,12 @@ import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGua
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
  * - take care of inflation attack
- * - TWAP (price0CumulativeLast..)
+ * - protocol fee
  * - flashloan function
+ * - skim and sync
  * - fee for LPs à la V3?
+ *
+ * - TWAP (price0CumulativeLast..)
  */
 
 /**
@@ -24,14 +27,15 @@ import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGua
 contract Pair is ReentrancyGuard, ERC20 {
     using SafeERC20 for ERC20;
 
+    uint256 constant LP_TOKEN_PRECISION = 1e18;
+    uint256 constant FEE_NUMERATOR = 99; // 1%
+    uint256 constant FEE_DENOMINATOR = 100; // 1%
+
     ERC20 public asset0;
     ERC20 public asset1;
 
     uint256 public precisionAsset0;
     uint256 public precisionAsset1;
-    uint256 constant LP_TOKEN_PRECISION = 1e18;
-    uint256 constant FEE_NUMERATOR = 99; // 1%
-    uint256 constant FEE_DENOMINATOR = 100; // 1%
 
     uint256 public reserve0;
     uint256 public reserve1;
@@ -76,11 +80,6 @@ contract Pair is ReentrancyGuard, ERC20 {
 
         (uint256 reserve0_, uint256 reserve1_) = getReserves();
 
-        uint256 currentPrice = reserve0_ * precisionAsset1 / reserve1_; // has precision of asset0, precision asset1 cancels out
-
-        // if asset0 -> asset1, amountIn / price, since price = how much asset0 to get asset1
-        // 3000USDC -> weth, price 3000 USDC per ether, 3000/price = 1
-        //
         uint256 computedAmountOut = buyingAsset == address(asset1)
             ? (amountIn * FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
             : (amountIn * reserve0_ * FEE_NUMERATOR) / (reserve1_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn);
