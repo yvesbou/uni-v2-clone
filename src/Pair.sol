@@ -7,6 +7,12 @@ import {IERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 
+library Math {
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+}
+
 // todo
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
@@ -154,17 +160,7 @@ contract Pair is ReentrancyGuard, ERC20 {
              *
              *          1000, 200 -> 1200 lp tokens
              */
-            uint256 ratio;
-            if (asset0_ * precisionAsset1 / asset1_ > reserve0_ * precisionAsset1 / reserve1_) {
-                // asset1 undervalued
-                ratio = asset1_ * precisionAsset1 / reserve1_;
-                lpTokensToMint = ratio * totalSupply() / precisionAsset1;
-            } else {
-                // asset0 undervalued, or equal ratio (then it doesnt matter)
-                ratio = asset0_ * precisionAsset0 / reserve0_;
-                // if same amount as already in the pool, the total supply is doubled
-                lpTokensToMint = ratio * totalSupply() / precisionAsset0;
-            }
+            lpTokensToMint = Math.min(asset0_ * totalSupply() / reserve0_, asset1_ * totalSupply() / reserve1_);
         }
 
         // effect
