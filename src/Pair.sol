@@ -46,6 +46,11 @@ contract Pair is ReentrancyGuard, ERC20 {
     uint256 public reserve0;
     uint256 public reserve1;
 
+    uint256 public blockTimestampLast; // downsize to uint32 and pack with reserves?
+
+    uint256 price0CumulativeLast;
+    uint256 price1CumulativeLast;
+
     error ZeroAddressNotAllowed();
     error NotEnoughLPTokens();
     error InvalidAsset(address asset);
@@ -229,6 +234,20 @@ contract Pair is ReentrancyGuard, ERC20 {
     /////////////////////////////////
 
     function _update(uint256 newReserve0, uint256 newReserve1) internal {
+        uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
+        uint32 timeElapsed;
+        unchecked {
+            timeElapsed = blockTimestamp - uint32(blockTimestampLast); // overflow in 2106, intended
+        }
+        if (timeElapsed > 0 && newReserve0 != 0 && newReserve1 != 0) {
+            unchecked {
+                // allow overflowing
+                price0CumulativeLast += newReserve1 * timeElapsed / newReserve0;
+                price1CumulativeLast += newReserve0 * timeElapsed / newReserve1;
+            }
+        }
+
+        // new reserves
         reserve0 = newReserve0;
         reserve1 = newReserve1;
     }
