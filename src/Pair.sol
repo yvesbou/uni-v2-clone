@@ -250,5 +250,11 @@ contract Pair is ReentrancyGuard, ERC20 {
         // new reserves
         reserve0 = newReserve0;
         reserve1 = newReserve1;
+
+        blockTimestampLast = blockTimestamp;
+    }
+
+    function sync() external nonReentrant {
+        _update(asset0.balanceOf(address(this)), asset1.balanceOf(address(this)));
     }
 }
