@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.28;
 
-import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
-import {IERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/utils/SafeERC20.sol";
+// import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
+import {ERC20} from "@solady-0.0.287/tokens/ERC20.sol";
+import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 
 library Math {
@@ -17,12 +17,12 @@ library Math {
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
  * - take care of inflation attack
- * - protocol fee
+ *     - migrate to using Solady ERC20
+ * - protocol fee (mintFee)
  * - flashloan function
- * - skim and sync
- * - fee for LPs à la V3?
  *
- * - TWAP (price0CumulativeLast..)
+ * - consume TWAP
+ * - show importance of skim with a test
  */
 
 /**
@@ -31,7 +31,7 @@ library Math {
  *  -
  */
 contract Pair is ReentrancyGuard, ERC20 {
-    using SafeERC20 for ERC20;
+    using SafeTransferLib for ERC20;
 
     uint256 constant LP_TOKEN_PRECISION = 1e18;
     uint256 constant FEE_NUMERATOR = 99; // 1%
@@ -39,6 +39,9 @@ contract Pair is ReentrancyGuard, ERC20 {
 
     ERC20 public asset0;
     ERC20 public asset1;
+
+    string private _name;
+    string private _symbol;
 
     uint256 public precisionAsset0;
     uint256 public precisionAsset1;
@@ -68,9 +71,11 @@ contract Pair is ReentrancyGuard, ERC20 {
         uint256 amountOut
     );
 
-    constructor(string memory name_, string memory symbol_, address asset0_, address asset1_) ERC20(name_, symbol_) {
+    constructor(address asset0_, address asset1_) ERC20() {
         asset0 = ERC20(asset0_);
         asset1 = ERC20(asset1_);
+        _name = string(abi.encodePacked(asset0.name(), "-", asset1.name()));
+        _symbol = string(abi.encodePacked(asset0.symbol(), "-", asset1.symbol()));
         precisionAsset0 = 10 ** asset0.decimals();
         precisionAsset1 = 10 ** asset1.decimals();
     }
@@ -117,11 +122,11 @@ contract Pair is ReentrancyGuard, ERC20 {
         // interactions
         // transfer buying asset to the user & transfer selling asset to the pool
         if (buyingAsset == address(asset0)) {
-            asset0.safeTransfer(receiver, computedAmountOut);
+            SafeTransferLib.safeTransfer(address(asset0), receiver, computedAmountOut);
             asset1.transferFrom(msg.sender, address(this), amountIn);
         } else {
             // buyingAsset == asset0
-            asset1.safeTransfer(receiver, computedAmountOut);
+            SafeTransferLib.safeTransfer(address(asset1), receiver, computedAmountOut);
             asset0.transferFrom(msg.sender, address(this), amountIn);
         }
 
@@ -212,9 +217,20 @@ contract Pair is ReentrancyGuard, ERC20 {
         // interactions
 
         // safeTransfer asset0
-        asset0.safeTransfer(receiverOfAssets, amountOfAsset0ToReturn);
+        SafeTransferLib.safeTransfer(address(asset0), receiverOfAssets, amountOfAsset0ToReturn);
         // safeTransfer asset1
-        asset1.safeTransfer(receiverOfAssets, amountOfAsset1ToReturn);
+        SafeTransferLib.safeTransfer(address(asset1), receiverOfAssets, amountOfAsset1ToReturn);
+    }
+
+    function skim(address to) external nonReentrant {
+        uint256 surplusAsset0 = asset0.balanceOf(address(this)) - reserve0;
+        uint256 surplusAsset1 = asset1.balanceOf(address(this)) - reserve1;
+        SafeTransferLib.safeTransfer(address(asset0), to, surplusAsset0);
+        SafeTransferLib.safeTransfer(address(asset1), to, surplusAsset1);
+    }
+
+    function sync() external nonReentrant {
+        _update(asset0.balanceOf(address(this)), asset1.balanceOf(address(this)));
     }
 
     /////////////////////////////////
@@ -225,6 +241,21 @@ contract Pair is ReentrancyGuard, ERC20 {
 
     function getReserves() public view returns (uint256, uint256) {
         return (reserve0, reserve1);
+    }
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() public view virtual override returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Returns the symbol of the token, usually a shorter version of the
+     * name.
+     */
+    function symbol() public view virtual override returns (string memory) {
+        return _symbol;
     }
 
     /////////////////////////////////
@@ -252,9 +283,5 @@ contract Pair is ReentrancyGuard, ERC20 {
         reserve1 = newReserve1;
 
         blockTimestampLast = blockTimestamp;
-    }
-
-    function sync() external nonReentrant {
-        _update(asset0.balanceOf(address(this)), asset1.balanceOf(address(this)));
     }
 }

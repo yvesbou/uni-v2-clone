@@ -25,10 +25,7 @@ contract Factory {
         if (token0 == address(0)) revert ZeroAddressNotAllowed();
         if (pairRegistry[token0][token1] != address(0)) revert PairAlreadyExists();
 
-        string memory pairName = string.concat(ERC20(token0).name(), "_", ERC20(token1).name());
-        string memory pairSymbol = string.concat(ERC20(token0).symbol(), "_", ERC20(token1).symbol());
-
-        Pair newPool = new Pair(pairName, pairSymbol, token0, token1);
+        Pair newPool = new Pair(token0, token1);
 
         pairRegistry[token0][token1] = address(newPool);
         pairRegistry[token1][token0] = address(newPool);

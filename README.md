@@ -52,6 +52,18 @@ $$
    \Delta y = \frac{y \cdot \Delta x}{x + \Delta x}
    $$
 
+## TWAP (Time-weighted-average-price)
+
+Regarding this line:
+
+```solidity
+uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+```
+
+check out this link: https://github.com/Uniswap/v2-core/issues/96
+
+# Template
+
 ## Foundry with Soldeer Template
 
 ```shell
