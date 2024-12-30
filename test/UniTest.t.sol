@@ -7,6 +7,7 @@ import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
 import {Token} from "../src/Token.sol";
 import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
+import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
 
 contract UniTest is Test {
     uint256 mainnetFork; // access to real deployed tokens
@@ -65,7 +66,9 @@ contract UniTest is Test {
         Pair(pair).provideLiquidity(1000e18, 200e18, lp);
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
-        assertEq(totalLPTokens, 1200e18);
+
+        uint256 receivedLPTokens = FixedPointMathLib.sqrt(1000e18 * 200e18) - 1000;
+        assertEq(receivedLPTokens, totalLPTokens - 1000);
     }
 
     function test_two_supply_same_amount() public {
@@ -93,7 +96,8 @@ contract UniTest is Test {
         vm.stopPrank();
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
-        assertEq(totalLPTokens, 1200e18);
+        uint256 receivedLPTokens = FixedPointMathLib.sqrt(1000e18 * 200e18) - 1000;
+        assertEq(receivedLPTokens, totalLPTokens - 1000);
 
         // second LP deposits
         vm.startPrank(lp2);
@@ -105,11 +109,10 @@ contract UniTest is Test {
         vm.stopPrank();
 
         totalLPTokens = Pair(pair).totalSupply();
-        // double amount of LP tokens
-        assertEq(totalLPTokens, 2400e18);
+
         uint256 balanceLP1 = Pair(pair).balanceOf(lp);
         uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
-        assertEq(balanceLP1, balanceLP2);
+        assertEq(balanceLP1 + 1000, balanceLP2); // first user donated 1000LP tokens
     }
 
     // first LP deposits 2x of second LP
@@ -138,7 +141,8 @@ contract UniTest is Test {
         vm.stopPrank();
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
-        assertEq(totalLPTokens, 1200e18);
+        uint256 receivedLPTokens = FixedPointMathLib.sqrt(1000e18 * 200e18) - 1000;
+        assertEq(receivedLPTokens, totalLPTokens - 1000);
 
         // second LP deposits
         vm.startPrank(lp2);
@@ -146,16 +150,13 @@ contract UniTest is Test {
         TOKEN_B.approve(pair, MAX);
 
         Pair(pair).provideLiquidity(500e18, 100e18, lp2);
+        uint256 receivedLPTokensLP2 = FixedPointMathLib.sqrt(500e18 * 100e18);
 
         vm.stopPrank();
 
         totalLPTokens = Pair(pair).totalSupply();
-        // double amount of LP tokens
-        assertEq(totalLPTokens, 1800e18); // 1200 + 600
-        uint256 balanceLP1 = Pair(pair).balanceOf(lp);
-        uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
-        assertEq(balanceLP1, 1200e18);
-        assertEq(balanceLP2, 600e18);
+
+        assertEq(receivedLPTokensLP2 + receivedLPTokens, totalLPTokens - 1000);
     }
 
     function test_lp_redeems_before_1st_swap() public {
@@ -183,7 +184,7 @@ contract UniTest is Test {
         vm.stopPrank();
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
-        assertEq(totalLPTokens, 1200e18);
+        uint256 receivedLPTokens = FixedPointMathLib.sqrt(1000e18 * 200e18) - 1000;
 
         // second LP deposits
         vm.startPrank(lp2);
@@ -197,21 +198,23 @@ contract UniTest is Test {
         // first LP re-claims all tokens again
         vm.startPrank(lp);
         Pair(pair).approve(pair, MAX);
-        Pair(pair).redeemLiquidity(1200e18, lp);
+        Pair(pair).redeemLiquidity(receivedLPTokens, lp);
         vm.stopPrank();
 
         totalLPTokens = Pair(pair).totalSupply();
-        // double amount of LP tokens
-        assertEq(totalLPTokens, 600e18); // 0 + 600
+
+        uint256 receivedLPTokensLP2 = FixedPointMathLib.sqrt(500e18 * 100e18);
+
+        assertEq(receivedLPTokensLP2 + 1000, totalLPTokens); // lp2 + 1000 deadshares
         uint256 balanceLP1 = Pair(pair).balanceOf(lp);
         uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
         assertEq(balanceLP1, 0);
-        assertEq(balanceLP2, 600e18);
+        assertEq(balanceLP2, receivedLPTokensLP2);
 
         uint256 balanceToken0 = TOKEN_B.balanceOf(lp);
         uint256 balanceToken1 = TOKEN_A.balanceOf(lp);
-        assertEq(balanceToken0, 1000e18);
-        assertEq(balanceToken1, 200e18);
+        assertLt(balanceToken0, 1000e18); // bc of deadshares not everything is received
+        assertLt(balanceToken1, 200e18);
     }
 
     function test_simple_swap() public {
@@ -241,7 +244,6 @@ contract UniTest is Test {
         vm.stopPrank();
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
-        assertEq(totalLPTokens, 1200e18);
 
         // second LP deposits
         vm.startPrank(lp2);

@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 // import {ERC20} from "@openzeppelin-contracts-5.0.2/token/ERC20/ERC20.sol";
 import {ERC20} from "@solady-0.0.287/tokens/ERC20.sol";
 import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
+import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 
 library Math {
@@ -17,12 +18,12 @@ library Math {
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
  * - take care of inflation attack
- *     - migrate to using Solady ERC20
  * - protocol fee (mintFee)
  * - flashloan function
  *
  * - consume TWAP
  * - show importance of skim with a test
+ * - write a test with an inflation attack
  */
 
 /**
@@ -32,10 +33,15 @@ library Math {
  */
 contract Pair is ReentrancyGuard, ERC20 {
     using SafeTransferLib for ERC20;
+    using FixedPointMathLib for uint256;
 
     uint256 constant LP_TOKEN_PRECISION = 1e18;
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
+
+    // initial supplier needs to donate, dead shares do not completely solve inflation attack
+    // https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
+    uint256 public constant MINIMUM_LIQUIDITY = 10 ** 3;
 
     ERC20 public asset0;
     ERC20 public asset1;
@@ -55,6 +61,7 @@ contract Pair is ReentrancyGuard, ERC20 {
     uint256 price1CumulativeLast;
 
     error ZeroAddressNotAllowed();
+    error InsufficientSupplied();
     error NotEnoughLPTokens();
     error InvalidAsset(address asset);
     error InsufficientAmountOut(uint256 amountOutRequired, uint256 amountOutEffective);
@@ -150,8 +157,9 @@ contract Pair is ReentrancyGuard, ERC20 {
         if (reserve0_ == 0 && reserve1_ == 0) {
             // pool empty
 
-            // assumption: give any amount of token
-            lpTokensToMint += asset0_ + asset1_;
+            // surplus above MINIMUM_LIQUIDITY is given to the user
+            lpTokensToMint = FixedPointMathLib.sqrt(asset0_ * asset1_) - MINIMUM_LIQUIDITY;
+            _mint(address(0), MINIMUM_LIQUIDITY);
         } else {
             // pool already initiated
             // determine whether asset0 or asset1 amount is used for LP calculation
@@ -171,6 +179,9 @@ contract Pair is ReentrancyGuard, ERC20 {
              *          1000, 200 -> 1200 lp tokens
              */
             lpTokensToMint = Math.min(asset0_ * totalSupply() / reserve0_, asset1_ * totalSupply() / reserve1_);
+        }
+        if (lpTokensToMint == 0) {
+            revert InsufficientSupplied();
         }
 
         // effect
