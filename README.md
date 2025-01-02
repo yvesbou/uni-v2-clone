@@ -19,40 +19,43 @@ $$
 
 1. Start with the constant product formula after a swap:
 
-   $$
-   (x + \Delta x) \cdot (y - \Delta y) = x \cdot y
-   $$
+$$
+(x + \Delta x) \cdot (y - \Delta y) = x \cdot y
+$$
 
 2. Expand the left-hand side:
 
-   $$
-   x \cdot y - x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = x \cdot y
-   $$
+$$
+x \cdot y - x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = x \cdot y
+$$
 
 3. Cancel $(x \cdot y)$ on both sides:
 
-   $$
-   -x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = 0
-   $$
+$$
+-x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = 0
+$$
 
 4. Assume $( \Delta x \cdot \Delta y \approx 0 $) for small swaps:
 
-   $$
-   -x \cdot \Delta y + y \cdot \Delta x = 0
-   $$
+$$
+-x \cdot \Delta y + y \cdot \Delta x = 0
+$$
 
 5. Solve for $( \Delta y $):
 
-   $$
-   \Delta y = \frac{y \cdot \Delta x}{x}
-   $$
+$$
+\Delta y = \frac{y \cdot \Delta x}{x}
+$$
 
 6. Account for the updated reserve $(x + \Delta x$):
-   $$
-   \Delta y = \frac{y \cdot \Delta x}{x + \Delta x}
-   $$
 
-## TWAP (Time-weighted-average-price)
+$$
+\Delta y = \frac{y \cdot \Delta x}{x + \Delta x}
+$$
+
+---
+
+## TWAP (Time-weighted-average-price)
 
 Each Uniswap Pool as a competitive market serves as an indicator what the true price is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.
 
