@@ -54,6 +54,66 @@ $$
 
 ## TWAP (Time-weighted-average-price)
 
+Each Uniswap Pool as a competitive market serves as an indicator what the true price is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.
+
+The following variables from the Pool contract are used to compute the TWAP: `price0CumulativeLast`, `price1CumulativeLast` and `blockTimestampLast`.
+
+Time weighted average price is usually computed as follows:
+
+$$
+TWAP = \frac {p_0*T_0 + p_1*T_1 + p_2*T_2 + ... + p_n*T_n}{T_0 + T_1 + T_2 + ... + T_n}
+$$
+
+where $T_x$ is the duration where price $p_x$ was recorded.
+
+This makes intuitively sense, let imagine us 24h and 12h the price was $1 and 12h the price was $2. Without calculation we would guess that the TWAP is $1.5.
+
+Let us check with the formula:
+
+$$
+TWAP = \frac {1*12 + 2*12}{24} = \frac {36}{24} = \frac {3}{2} = 1.5
+$$
+
+### Code in Pool contract
+
+When coding smart contracts optimisation is always a requirement. So storing $p_0$ until $p_n$ is not feasible. Instead we could create a work-around, which requires that consumers of the TWAP oracle we're creating snapshot the data we store.
+
+For our work-around we compute the nominator let's call it $weightedPrice_n$ = $p_0*T_0 + p_1*T_1 + p_2*T_2 + ... + p_n*T_n$ to the given time $t_n$ where we update the reserves (ie the ratio).
+
+So in our code
+
+```Solidity
+price0CumulativeLast += newReserve1 * timeElapsed / newReserve0;
+```
+
+where `price0CumulativeLast` is $weightedPrice_n$
+
+Let's say we want the TWAP for a time period (and we come up with arbitrary time points, where timestamp 4 is strictly greater than timestamp 2) between timestamp 2 and timestamp 4. When we snapshot a previous $weightedPrice_2$ ($p_0*T_0 + p_1*T_1 + p_2*T_2$) and now is timestamp 4, which is $p_0*T_0 + p_1*T_1 + p_2*T_2 + p_3*T_3 + p_4*T_4$, the difference of the two weighted prices is $p_3*T_3 + p_4*T_4$, exactly what we wanted.
+
+This means we can save on storage, by only storing a cumulative price each time the reserves change.
+
+For the denominator we need the total duration of this period $T_3+T_4$, but this is easy as our first snapshot at timestamp 2 is exactly the duration smaller than timestamp 4.
+
+$p_x$ is timestamp at time `x`.
+
+$$
+p_0*T_0 + p_1*T_1 + p_2*T_2 + p_3*T_3 + p_4*T_4 - (p_0*T_0 + p_1*T_1 + p_2*T_2) = \\
+
+p_3*T_3 + p_4*T_4
+$$
+
+let's introduce the time difference as
+
+$$
+t_4-t_2 = T_4+T_3+T_2+T_1 - (T_2+T_1) = T_4+T_3
+$$
+
+Which gives us the full expression as,
+
+$$
+TWAP = \frac {p_3*T_3 + p_4*T_4}{T_4+T_3}
+$$
+
 Regarding this line:
 
 ```solidity

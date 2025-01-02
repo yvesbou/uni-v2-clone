@@ -17,7 +17,6 @@ library Math {
 // todo
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
- * - take care of inflation attack
  * - protocol fee (mintFee)
  * - flashloan function
  *
@@ -57,8 +56,8 @@ contract Pair is ReentrancyGuard, ERC20 {
 
     uint256 public blockTimestampLast; // downsize to uint32 and pack with reserves?
 
-    uint256 price0CumulativeLast;
-    uint256 price1CumulativeLast;
+    uint256 public price0CumulativeLast;
+    uint256 public price1CumulativeLast;
 
     error ZeroAddressNotAllowed();
     error InsufficientSupplied();
