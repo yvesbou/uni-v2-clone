@@ -4,10 +4,6 @@ pragma solidity 0.8.28;
 
 import {Pair} from "./Pair.sol";
 
-interface IERC20 {
-    function decimals() external returns (uint256);
-}
-
 contract TWAPConsumer {
     Pair public pair;
     uint256 public lastSnapshot; // timestamp (t_x), t_4-t_2 = T_4+T_3
@@ -20,6 +16,7 @@ contract TWAPConsumer {
 
     error ErrorOracleStale();
     error ErrorTooBigPriceDifference();
+    error ErrorNoTimeDifference();
 
     constructor(address pair_) {
         pair = Pair(pair_);
@@ -44,15 +41,31 @@ contract TWAPConsumer {
 
         // do calculation
         uint256 timeDelta = timestampNow - lastSnapshot;
+        if (timeDelta == 0) revert ErrorNoTimeDifference(); // no time has passed
+
         uint256 weightedPrices0 = latestCumulativePrice0 - lastCumulativePrice0;
         uint256 weightedPrices1 = latestCumulativePrice1 - lastCumulativePrice1;
 
         // twap
-        uint256 twap0 = weightedPrices0 / timeDelta;
-        uint256 twap1 = weightedPrices1 / timeDelta;
+        uint256 twap0 = weightedPrices0 * 1e18 / timeDelta;
+        uint256 twap1 = weightedPrices1 * 1e18 / timeDelta;
 
         uint256 lastTWAP0_ = lastTWAP0; // savings
         uint256 lastTWAP1_ = lastTWAP1;
+
+        if (lastTWAP0_ == 0 && lastTWAP1_ == 0) {
+            // not initialised yet
+            lastTWAP0 = twap0;
+            lastTWAP1 = twap1;
+
+            // set latest
+            lastCumulativePrice0 = latestCumulativePrice0;
+            lastCumulativePrice1 = latestCumulativePrice1;
+            lastSnapshot = timestampNow;
+
+            // return
+            return (twap0, twap1, timestampNow);
+        }
 
         if (
             (twap0 - lastTWAP0_) * 100 / lastTWAP0_ > MAX_PERCENTAGE_CHANGE
