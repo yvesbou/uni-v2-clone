@@ -23,6 +23,8 @@ library Math {
  * - consume TWAP
  * - show importance of skim with a test
  * - write a test with an inflation attack
+ *
+ * - improve documentation based on uni-v2 book
  */
 
 /**
@@ -280,11 +282,16 @@ contract Pair is ReentrancyGuard, ERC20 {
         unchecked {
             timeElapsed = blockTimestamp - uint32(blockTimestampLast); // overflow in 2106, intended
         }
+
+        // savings
+        uint256 reserve0_ = reserve0;
+        uint256 reserve1_ = reserve1;
+
         if (timeElapsed > 0 && newReserve0 != 0 && newReserve1 != 0) {
             unchecked {
                 // allow overflowing
-                price0CumulativeLast += newReserve1 * timeElapsed / newReserve0;
-                price1CumulativeLast += newReserve0 * timeElapsed / newReserve1;
+                price0CumulativeLast += reserve1_ * timeElapsed / reserve0_;
+                price1CumulativeLast += reserve0_ * timeElapsed / reserve1_;
             }
         }
 
