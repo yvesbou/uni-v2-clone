@@ -16,7 +16,7 @@ contract TWAPConsumer {
 
     error ErrorOracleStale();
     error ErrorTooBigPriceDifference();
-    error NotEnoughTimeHasPassedSinceLastSnapshot();
+    error NotActiveStillInitialising();
 
     constructor(address pair_) {
         pair = Pair(pair_);
@@ -30,7 +30,7 @@ contract TWAPConsumer {
     }
 
     function getPrice() public returns (uint256, uint256, uint256) {
-        // check if stale
+        // check if stale, if the price on the AMM pool has not updated since 1 hour
         uint256 latestTimestamp = pair.blockTimestampLast();
         uint256 timestampNow = block.timestamp;
         if (timestampNow - latestTimestamp > 1 hours) revert ErrorOracleStale();
@@ -39,13 +39,22 @@ contract TWAPConsumer {
         uint256 latestCumulativePrice0 = pair.price0CumulativeLast();
         uint256 latestCumulativePrice1 = pair.price1CumulativeLast();
 
+        // savings
+        uint256 lastTWAP0_ = lastTWAP0;
+        uint256 lastTWAP1_ = lastTWAP1;
+
         // do calculation
         uint256 timeDelta = latestTimestamp - lastSnapshot;
-        if (timeDelta < 1 hours) revert NotEnoughTimeHasPassedSinceLastSnapshot();
+        if (timeDelta < 1 hours && lastTWAP0_ == 0 && lastTWAP1_ == 0) {
+            revert NotActiveStillInitialising();
+        }
+        if (timeDelta < 1 hours) {
+            // protect against too short TWAPs
+            return (lastTWAP0_, lastTWAP1_, lastSnapshot);
+        }
 
         uint256 weightedPrices0;
         uint256 weightedPrices1;
-
         unchecked {
             weightedPrices0 = latestCumulativePrice0 - lastCumulativePrice0;
             weightedPrices1 = latestCumulativePrice1 - lastCumulativePrice1;
@@ -54,9 +63,6 @@ contract TWAPConsumer {
         // twap
         uint256 twap0 = weightedPrices0 * 1e18 / timeDelta;
         uint256 twap1 = weightedPrices1 * 1e18 / timeDelta;
-
-        uint256 lastTWAP0_ = lastTWAP0; // savings
-        uint256 lastTWAP1_ = lastTWAP1;
 
         if (lastTWAP0_ == 0 && lastTWAP1_ == 0) {
             // not initialised yet
@@ -72,12 +78,8 @@ contract TWAPConsumer {
             return (twap0, twap1, timestampNow);
         }
 
-        if (
-            (twap0 - lastTWAP0_) * 100 / lastTWAP0_ > MAX_PERCENTAGE_CHANGE
-                || (twap1 - lastTWAP1_) * 100 / lastTWAP1_ > MAX_PERCENTAGE_CHANGE
-        ) {
-            revert ErrorTooBigPriceDifference();
-        }
+        if (twap0 * 100 > lastTWAP0_ * 110 && twap0 * 100 < lastTWAP0_ * 90) revert ErrorTooBigPriceDifference();
+        if (twap1 * 100 > lastTWAP1_ * 110 && twap1 * 100 < lastTWAP1_ * 90) revert ErrorTooBigPriceDifference();
 
         lastTWAP0 = twap0;
         lastTWAP1 = twap1;

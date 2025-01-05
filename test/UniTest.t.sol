@@ -374,9 +374,209 @@ contract UniTest is Test {
         console.log(price1);
     }
 
-    function testTWAPStale() public {}
+    function testTWAPStale() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
 
-    function testTWAPTooMuchPriceDeviation() public {}
+        uint256 startTime = 1735889903;
+        uint256 startBlock = 21542601;
+        vm.warp(startTime);
+        vm.roll(startBlock);
+
+        // fill pool w/ liquidity
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        TOKEN_A.mint(trader, 200e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        // second LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
+
+        vm.stopPrank();
+
+        // the inital price remained for 1 hour
+        vm.warp(startTime + 1 hours);
+        vm.roll(startBlock + 300);
+
+        TWAPConsumer consumer = new TWAPConsumer(pair);
+        // snapshot price
+        consumer.takeSnapshot();
+
+        uint256 lastCumulativePrice0 = consumer.lastCumulativePrice0();
+        uint256 lastCumulativePrice1 = consumer.lastCumulativePrice1();
+        console.log("----------------------");
+        console.log("t+1");
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+
+        // trade
+        vm.startPrank(trader);
+        TOKEN_A.approve(pair, MAX);
+
+        Pair(pair).swap(trader, address(TOKEN_B), 10e18, 48e18);
+
+        ////////// temp ///////////////
+        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+        ////////////////////////////////
+
+        // note: reserves are true (checked)
+
+        // the new price after swap remained for 1 hour
+        vm.warp(startTime + 2 hours);
+        vm.roll(startBlock + 600);
+        console.log("----------------------");
+        console.log("t+2");
+        Pair(pair).sync(); // cumulative price increased, as timedelta >0
+
+        ////////// temp ///////////////
+        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+        ////////////////////////////////
+
+        // get price after 1h initial price, and 1h after swap price (50/50)
+        vm.warp(startTime + 3 hours + 1 minutes);
+        vm.expectRevert(); // more than 1 hour the price did not change
+        (uint256 price0, uint256 price1,) = consumer.getPrice();
+    }
+
+    function testTWAPTooMuchPriceDeviation() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        uint256 startTime = 1735889903;
+        uint256 startBlock = 21542601;
+        vm.warp(startTime);
+        vm.roll(startBlock);
+
+        // fill pool w/ liquidity
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        TOKEN_A.mint(trader, 200e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        // second LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
+
+        vm.stopPrank();
+
+        // the inital price remained for 1 hour
+        vm.warp(startTime + 1 hours);
+        vm.roll(startBlock + 300);
+
+        TWAPConsumer consumer = new TWAPConsumer(pair);
+        // snapshot price
+        consumer.takeSnapshot();
+
+        uint256 lastCumulativePrice0 = consumer.lastCumulativePrice0();
+        uint256 lastCumulativePrice1 = consumer.lastCumulativePrice1();
+        console.log("----------------------");
+        console.log("t+1");
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+
+        // trade
+        vm.startPrank(trader);
+        TOKEN_A.approve(pair, MAX);
+
+        Pair(pair).swap(trader, address(TOKEN_B), 10e18, 48e18);
+
+        ////////// temp ///////////////
+        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+        ////////////////////////////////
+
+        // note: reserves are true (checked)
+
+        // the new price after swap remained for 1 hour
+        vm.warp(startTime + 2 hours);
+        vm.roll(startBlock + 600);
+        console.log("----------------------");
+        console.log("t+2");
+        Pair(pair).sync(); // cumulative price increased, as timedelta >0
+
+        ////////// temp ///////////////
+        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        console.log("lastCumulativePrice0");
+        console.log(lastCumulativePrice0);
+        console.log("lastCumulativePrice1");
+        console.log(lastCumulativePrice1);
+        ////////////////////////////////
+
+        // get price after 1h initial price, and 1h after swap price (50/50)
+        (uint256 price0, uint256 price1,) = consumer.getPrice();
+        console.log("price0 is: ");
+        console.log(price0);
+        console.log("price1 is: ");
+        console.log(price1);
+
+        vm.warp(startTime + 3 hours);
+        vm.roll(startBlock + 900);
+        Pair(pair).swap(trader, address(TOKEN_B), 50e18, 176e18);
+
+        (price0, price1,) = consumer.getPrice();
+        console.log("price0 is: ");
+        console.log(price0);
+        console.log("price1 is: ");
+        console.log(price1);
+    }
 
     // TODO
     /**
