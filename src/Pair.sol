@@ -287,7 +287,7 @@ contract Pair is ReentrancyGuard, ERC20 {
         uint256 reserve0_ = reserve0;
         uint256 reserve1_ = reserve1;
 
-        if (timeElapsed > 0 && newReserve0 != 0 && newReserve1 != 0) {
+        if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ != 0) {
             unchecked {
                 // allow overflowing
                 price0CumulativeLast += reserve1_ * timeElapsed / reserve0_;
