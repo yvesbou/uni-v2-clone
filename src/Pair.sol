@@ -25,6 +25,7 @@ library Math {
  * - write a test with an inflation attack
  *
  * - improve documentation based on uni-v2 book
+ *  - gas improvements (packing price, timestamp)
  */
 
 /**

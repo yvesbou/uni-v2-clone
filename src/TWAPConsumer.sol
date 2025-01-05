@@ -43,8 +43,13 @@ contract TWAPConsumer {
         uint256 timeDelta = latestTimestamp - lastSnapshot;
         if (timeDelta < 1 hours) revert NotEnoughTimeHasPassedSinceLastSnapshot();
 
-        uint256 weightedPrices0 = latestCumulativePrice0 - lastCumulativePrice0;
-        uint256 weightedPrices1 = latestCumulativePrice1 - lastCumulativePrice1;
+        uint256 weightedPrices0;
+        uint256 weightedPrices1;
+
+        unchecked {
+            weightedPrices0 = latestCumulativePrice0 - lastCumulativePrice0;
+            weightedPrices1 = latestCumulativePrice1 - lastCumulativePrice1;
+        }
 
         // twap
         uint256 twap0 = weightedPrices0 * 1e18 / timeDelta;
