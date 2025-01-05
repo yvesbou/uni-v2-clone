@@ -16,7 +16,7 @@ contract TWAPConsumer {
 
     error ErrorOracleStale();
     error ErrorTooBigPriceDifference();
-    error ErrorNoTimeDifference();
+    error NotEnoughTimeHasPassedSinceLastSnapshot();
 
     constructor(address pair_) {
         pair = Pair(pair_);
@@ -33,15 +33,15 @@ contract TWAPConsumer {
         // check if stale
         uint256 latestTimestamp = pair.blockTimestampLast();
         uint256 timestampNow = block.timestamp;
-        if (timestampNow - latestTimestamp > 3 hours) revert ErrorOracleStale();
+        if (timestampNow - latestTimestamp > 1 hours) revert ErrorOracleStale();
 
         // get latest
         uint256 latestCumulativePrice0 = pair.price0CumulativeLast();
         uint256 latestCumulativePrice1 = pair.price1CumulativeLast();
 
         // do calculation
-        uint256 timeDelta = timestampNow - lastSnapshot;
-        if (timeDelta == 0) revert ErrorNoTimeDifference(); // no time has passed
+        uint256 timeDelta = latestTimestamp - lastSnapshot;
+        if (timeDelta < 1 hours) revert NotEnoughTimeHasPassedSinceLastSnapshot();
 
         uint256 weightedPrices0 = latestCumulativePrice0 - lastCumulativePrice0;
         uint256 weightedPrices1 = latestCumulativePrice1 - lastCumulativePrice1;
