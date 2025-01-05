@@ -7,6 +7,7 @@ import {ERC20} from "@solady-0.0.287/tokens/ERC20.sol";
 import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
+import {IERC3156FlashLender} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashLender.sol";
 
 library Math {
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -20,12 +21,11 @@ library Math {
  * - protocol fee (mintFee)
  * - flashloan function
  *
- * - consume TWAP
  * - show importance of skim with a test
  * - write a test with an inflation attack
  *
  * - improve documentation based on uni-v2 book
- *  - gas improvements (packing price, timestamp)
+ * - gas improvements (packing price, timestamp)
  */
 
 /**
