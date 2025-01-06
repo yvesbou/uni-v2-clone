@@ -21,6 +21,7 @@ library Math {
  * - find out where rounding down/up is required (always in favor of protocol)
  * - protocol fee (mintFee)
  * - flashloan function
+ * - swap out (specify amountOut instead of amountIn)
  *
  * - show importance of skim with a test
  * - write a test with an inflation attack

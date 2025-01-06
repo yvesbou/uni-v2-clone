@@ -9,7 +9,7 @@ import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGua
 
 contract FlashBorrower is IERC3156FlashBorrower, ReentrancyGuard {
     IERC3156FlashLender lender;
-    mapping(address trustedInitiator => bool authorized) trustedInitiators;
+    mapping(address trustedInitiator => bool authorized) public trustedInitiators;
 
     error UntrustedLender();
     error UntrustedInitiator();
@@ -29,7 +29,7 @@ contract FlashBorrower is IERC3156FlashBorrower, ReentrancyGuard {
         // anyone can call flashloan() with an arbitrary borrower as the target and pass arbitrary data.
         // To ensure the data is not malicious, a flash loan receiver contract should only allow a restricted
         // set of initiators
-        if (!trustedInitiators[msg.sender]) revert UntrustedInitiator();
+        if (!trustedInitiators[initiator]) revert UntrustedInitiator();
 
         // (parsedData) = abi.decode(data, (DataTypes));
         // do something with the flashloan

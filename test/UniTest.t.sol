@@ -10,6 +10,7 @@ import {Token} from "../src/Token.sol";
 import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
 import {TWAPConsumer} from "../src/TWAPConsumer.sol";
+import {FlashBorrower} from "../src/FlashloanBorrower.sol";
 
 contract UniTest is Test {
     uint256 mainnetFork; // access to real deployed tokens
@@ -576,6 +577,57 @@ contract UniTest is Test {
         console.log(price0);
         console.log("price1 is: ");
         console.log(price1);
+    }
+
+    function test_flashloan() public {
+        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
+        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+
+        uint256 startTime = 1735889903;
+        uint256 startBlock = 21542601;
+        vm.warp(startTime);
+        vm.roll(startBlock);
+
+        // fill pool w/ liquidity
+        vm.startPrank(owner);
+        // let's assume token A is 5x more valuable at the start, 5B -> 1A
+        // LPs get their tokens
+        TOKEN_A.mint(lp, 200e18);
+        TOKEN_B.mint(lp, 1000e18);
+        TOKEN_A.mint(lp2, 200e18);
+        TOKEN_B.mint(lp2, 1000e18);
+
+        TOKEN_A.mint(trader, 200e18);
+
+        vm.stopPrank();
+
+        // first LP deposits
+        vm.startPrank(lp);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp);
+
+        vm.stopPrank();
+
+        // second LP deposits
+        vm.startPrank(lp2);
+        TOKEN_A.approve(pair, MAX);
+        TOKEN_B.approve(pair, MAX);
+
+        Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
+
+        vm.stopPrank();
+
+        vm.startPrank(trader);
+        // create borrower
+        FlashBorrower flashBorrower = new FlashBorrower(pair);
+        // starting balance for borrower contract to pay flashloan fee
+        TOKEN_A.transfer(address(flashBorrower), 10e17);
+        assertEq(flashBorrower.trustedInitiators(trader), true);
+        // execute flashloan
+        bytes memory data = "";
+        Pair(pair).flashLoan(flashBorrower, address(TOKEN_A), 10e18, data);
     }
 
     // TODO
