@@ -8,6 +8,7 @@ import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 import {IERC3156FlashLender} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashLender.sol";
+import {IERC3156FlashBorrower} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashBorrower.sol";
 
 library Math {
     function min(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -33,7 +34,7 @@ library Math {
  *  - the precision of a supplied asset cannot change
  *  -
  */
-contract Pair is ReentrancyGuard, ERC20 {
+contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -69,6 +70,9 @@ contract Pair is ReentrancyGuard, ERC20 {
     error InsufficientAmountOut(uint256 amountOutRequired, uint256 amountOutEffective);
     error NotEnoughLiquidityForSwap();
     error ViolationConstantK(uint256 left, uint256 right);
+    error FlashloanUnsupportedToken();
+    error FlashloanAboveMaxAmount();
+    error FlashloanFailed();
 
     event LiquiditySupplied(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
     event LiquidityRedeemed(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
@@ -246,6 +250,31 @@ contract Pair is ReentrancyGuard, ERC20 {
         _update(asset0.balanceOf(address(this)), asset1.balanceOf(address(this)));
     }
 
+    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data)
+        external
+        returns (bool)
+    {
+        if (amount > maxFlashLoan(token)) revert FlashloanAboveMaxAmount();
+
+        SafeTransferLib.safeTransfer(token, address(receiver), amount); // reverts if not able to receive
+
+        uint256 fee = flashFee(token, amount);
+
+        // if not checked for return value (the function really handles flashloan),
+        // a victim contract with a fallback could get drained
+        if (receiver.onFlashLoan(msg.sender, token, amount, fee, data) != keccak256("ERC3156Flashborrower.onFlashLoan"))
+        {
+            revert FlashloanFailed();
+        }
+
+        // lender has to control the flow of tokens
+        // a check that tokens are back in the contract is not sufficient
+        // the borrower could just increase the LP position instead of returning the loan
+        SafeTransferLib.safeTransferFrom(token, address(receiver), address(this), amount + fee);
+
+        return true;
+    }
+
     /////////////////////////////////
     /////////////////////////////////
     //////        VIEW          /////
@@ -254,6 +283,16 @@ contract Pair is ReentrancyGuard, ERC20 {
 
     function getReserves() public view returns (uint256, uint256) {
         return (reserve0, reserve1);
+    }
+
+    function maxFlashLoan(address token) public view returns (uint256) {
+        if (token != address(asset0) && token != address(asset1)) revert FlashloanUnsupportedToken();
+        uint256 currentSupply = ERC20(token).balanceOf(address(this));
+        return currentSupply / 10; // max 10%, fails if balance below 10
+    }
+
+    function flashFee(address token, uint256 amount) public pure returns (uint256) {
+        return amount / 100;
     }
 
     /**
