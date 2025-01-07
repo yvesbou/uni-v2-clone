@@ -55,6 +55,30 @@ $$
 
 ---
 
+## Protocol Fee
+
+The protocol wants to earn some fee on the trades but sending each time a small fee to a target contract is too gas expensive. Therefore the fee is calculated and deducted whenever an LP manages the position.
+
+Naive approach:
+
+```solidity
+function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public nonReentrant {
+    ...
+    uint256 feeForProtocol = 0;
+    if (msg.sender != factory) {
+        feeForProtocol = amountLPToken / 100;
+        transfer(factory, feeForProtocol);
+    }
+    uint256 amountLPTokenAfterFee = amountLPToken - feeForProtocol;
+
+    uint256 amountOfAsset0ToReturn = reserve0_ * amountLPTokenAfterFee / totalLPTokens;
+
+    ...
+}
+```
+
+The problem with this naive approach is that a fee would be deducted even if an LP has not earned a penny.
+
 ## TWAP (Time-weighted-average-price)
 
 Each Uniswap Pool as a competitive market serves as an indicator what the true price is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.

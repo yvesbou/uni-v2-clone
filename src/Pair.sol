@@ -20,7 +20,6 @@ library Math {
 /**
  * - find out where rounding down/up is required (always in favor of protocol)
  * - protocol fee (mintFee)
- * - flashloan function
  * - swap out (specify amountOut instead of amountIn)
  *
  * - show importance of skim with a test
@@ -49,6 +48,11 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
 
     ERC20 public asset0;
     ERC20 public asset1;
+
+    address public factory;
+
+    bool public feeSwitchOn;
+    uint256 public kLast;
 
     string private _name;
     string private _symbol;
@@ -85,13 +89,18 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         uint256 amountOut
     );
 
-    constructor(address asset0_, address asset1_) ERC20() {
+    constructor(address factory_, address asset0_, address asset1_) ERC20() {
+        factory = factory_;
         asset0 = ERC20(asset0_);
         asset1 = ERC20(asset1_);
         _name = string(abi.encodePacked(asset0.name(), "-", asset1.name()));
         _symbol = string(abi.encodePacked(asset0.symbol(), "-", asset1.symbol()));
         precisionAsset0 = 10 ** asset0.decimals();
         precisionAsset1 = 10 ** asset1.decimals();
+    }
+
+    function setFee(bool feeOn_) public {
+        feeSwitchOn = feeOn_;
     }
 
     /// @notice Allows a user to specify which asset he/she wants to buy/sell and how much he/she should get out of it
@@ -159,6 +168,9 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         if (receiver == address(0)) revert ZeroAddressNotAllowed();
 
         (uint256 reserve0_, uint256 reserve1_) = getReserves();
+        uint256 totalSupply_ = totalSupply(); // savings
+
+        takeProtocolFee(reserve0_, reserve1_, totalSupply_);
 
         uint256 lpTokensToMint;
         if (reserve0_ == 0 && reserve1_ == 0) {
@@ -185,7 +197,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
              *
              *          1000, 200 -> 1200 lp tokens
              */
-            lpTokensToMint = Math.min(asset0_ * totalSupply() / reserve0_, asset1_ * totalSupply() / reserve1_);
+            lpTokensToMint = Math.min(asset0_ * totalSupply_ / reserve0_, asset1_ * totalSupply_ / reserve1_);
         }
         if (lpTokensToMint == 0) {
             revert InsufficientSupplied();
@@ -199,6 +211,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         uint256 newReserve0 = reserve0_ + asset0_;
         uint256 newReserve1 = reserve1_ + asset1_;
         _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
+
+        if (feeSwitchOn) kLast = FixedPointMathLib.sqrt(newReserve0 * newReserve1);
 
         emit LiquiditySupplied(msg.sender, asset0_, asset1_, receiver);
 
@@ -224,11 +238,19 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         uint256 totalLPTokens = totalSupply();
         (uint256 reserve0_, uint256 reserve1_) = getReserves();
 
+        takeProtocolFee(reserve0_, reserve1_, totalLPTokens);
+
         uint256 amountOfAsset0ToReturn = reserve0_ * amountLPToken / totalLPTokens;
         uint256 amountOfAsset1ToReturn = reserve1_ * amountLPToken / totalLPTokens;
 
         // burn
         _burn(msg.sender, amountLPToken);
+
+        uint256 newReserve0 = reserve0_ - amountOfAsset0ToReturn;
+        uint256 newReserve1 = reserve1_ - amountOfAsset1ToReturn;
+        _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
+
+        if (feeSwitchOn) kLast = FixedPointMathLib.sqrt(newReserve0 * newReserve1);
 
         emit LiquidityRedeemed(msg.sender, amountOfAsset0ToReturn, amountOfAsset1ToReturn, receiverOfAssets);
 
@@ -341,5 +363,20 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         reserve1 = newReserve1;
 
         blockTimestampLast = blockTimestamp;
+    }
+
+    function takeProtocolFee(uint256 reserve0_, uint256 reserve1_, uint256 totalSupply_) internal {
+        uint256 kLast_ = kLast; // savings
+        if (feeSwitchOn && kLast_ != 0) {
+            // compute rootk
+            uint256 rootK = FixedPointMathLib.sqrt(reserve0_ * reserve1_);
+            // compute amount LP Tokens
+            if (rootK > kLast) {
+                uint256 lpTokensForProtocol = totalSupply_ * (rootK - kLast_) / (kLast_ + 5 * rootK);
+                if (lpTokensForProtocol > 0) _mint(factory, lpTokensForProtocol);
+            }
+        } else {
+            kLast = 0;
+        }
     }
 }
