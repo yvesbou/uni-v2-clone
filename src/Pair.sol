@@ -177,6 +177,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
             // pool empty
 
             // surplus above MINIMUM_LIQUIDITY is given to the user
+            // Question: but be sure you are rounding in the correct direction with `sqrt(...)`.
             lpTokensToMint = FixedPointMathLib.sqrt(asset0_ * asset1_) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY);
         } else {
@@ -316,7 +317,9 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     }
 
     function flashFee(address token, uint256 amount) public pure returns (uint256) {
-        return amount / 100;
+        if (amount < 100) return 100; // fee is 100 wei, people should not take such small flash loans
+        // round in favor of the protocol
+        return amount % FEE_FLASHLOAN > 0 ? (amount / FEE_FLASHLOAN) + 1 : amount / FEE_FLASHLOAN;
     }
 
     /**
@@ -373,7 +376,11 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
             uint256 rootK = FixedPointMathLib.sqrt(reserve0_ * reserve1_);
             // compute amount LP Tokens
             if (rootK > kLast) {
-                uint256 lpTokensForProtocol = totalSupply_ * (rootK - kLast_) / (kLast_ + 5 * rootK);
+                uint256 nominator = totalSupply_ * (rootK - kLast_);
+                uint256 denominator = (kLast_ + 5 * rootK);
+                // round in favor of the protocol
+                uint256 lpTokensForProtocol =
+                    nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
                 if (lpTokensForProtocol > 0) _mint(factory, lpTokensForProtocol);
             }
         } else {

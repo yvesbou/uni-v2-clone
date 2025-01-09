@@ -149,6 +149,15 @@ uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 
 check out this link: https://github.com/Uniswap/v2-core/issues/96
 
+## Rounding in Favor of the protocol
+
+Whenever the code calculates fees, or a price to be received by a user, the calculation should round up. Solidity rounds by default down.
+
+```Solidity
+// round in favor of the protocol
+uint256 lpTokensForProtocol = nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
+```
+
 # Template
 
 ## Foundry with Soldeer Template
