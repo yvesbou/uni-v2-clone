@@ -18,9 +18,11 @@ library Math {
 
 // todo
 /**
- * - find out where rounding down/up is required (always in favor of protocol)
- * - protocol fee (mintFee)
+ * - re-arrange tests
+ * - change to not using magic numbers
+ * - test protocol fee
  * - swap out (specify amountOut instead of amountIn)
+ * - deadline check
  *
  * - show importance of skim with a test
  * - write a test with an inflation attack
@@ -41,8 +43,9 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     uint256 constant LP_TOKEN_PRECISION = 1e18;
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
+    uint256 constant FEE_FLASHLOAN = 100; // 1%
 
-    // initial supplier needs to donate, dead shares do not completely solve inflation attack
+    // initial supplier needs to donate, dead shares do not completely solve inflation attack (but make them less effective)
     // https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
     uint256 public constant MINIMUM_LIQUIDITY = 10 ** 3;
 
@@ -313,7 +316,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     function maxFlashLoan(address token) public view returns (uint256) {
         if (token != address(asset0) && token != address(asset1)) revert FlashloanUnsupportedToken();
         uint256 currentSupply = ERC20(token).balanceOf(address(this));
-        return currentSupply / 10; // max 10%, fails if balance below 10
+        return currentSupply;
     }
 
     function flashFee(address token, uint256 amount) public pure returns (uint256) {
