@@ -13,7 +13,7 @@ import {Pair} from "../src/Pair.sol";
 // check that liquidity never decreases when burn is called
 // check if totalSupply >0 after deadshares
 
-contract PoolCreationTest is Test {
+contract SupplyWithdrawTest is Test {
     uint256 MAX = type(uint256).max;
 
     address owner = address(1);

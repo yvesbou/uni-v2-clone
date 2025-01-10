@@ -8,7 +8,7 @@ import {Token} from "../src/Token.sol";
 import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
 
-contract PoolCreationTest is Test {
+contract SwapTest is Test {
     uint256 MAX = type(uint256).max;
 
     address owner = address(1);

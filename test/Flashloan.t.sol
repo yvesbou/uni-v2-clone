@@ -9,7 +9,7 @@ import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
 import {FlashBorrower} from "../src/FlashloanBorrower.sol";
 
-contract PoolCreationTest is Test {
+contract FlashloanTest is Test {
     uint256 MAX = type(uint256).max;
 
     address owner = address(1);

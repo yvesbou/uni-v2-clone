@@ -9,7 +9,7 @@ import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
 import {TWAPConsumer} from "../src/TWAPConsumer.sol";
 
-contract PoolCreationTest is Test {
+contract TWAPTest is Test {
     uint256 MAX = type(uint256).max;
 
     address owner = address(1);
