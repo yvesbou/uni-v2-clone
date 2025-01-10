@@ -8,6 +8,12 @@ $$
 Δy=\frac{y \cdot Δx}{x+Δx}
 $$
 
+With fees = $f/F$, e.g `1%` = $99/100$
+
+$$
+Δy=\frac{y \cdot f \cdot Δx}{x \cdot F+Δx \cdot f}
+$$
+
 As in test `test_simple_swap()` the trader wants to trade 100 of `token A` for `token B`,
 given that the reserves are 2000 for `token A` and 400 for `token B` and a fee for LPs of 1% (99/100):
 
@@ -17,41 +23,55 @@ $$
 
 ### Derivation of the above formula
 
+Let's assume x gets taken out of the pool and y gets deposited into it.
+
 1. Start with the constant product formula after a swap:
 
 $$
-(x + \Delta x) \cdot (y - \Delta y) = x \cdot y
+(x - \Delta x) \cdot (y + \Delta y) \ge x \cdot y
 $$
 
-2. Expand the left-hand side:
+2. Isolate $\Delta x$:
 
 $$
-x \cdot y - x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = x \cdot y
+(x - \Delta x) \ge \frac{x \cdot y} {(y + \Delta y)}
 $$
 
-3. Cancel $(x \cdot y)$ on both sides:
-
 $$
--x \cdot \Delta y + y \cdot \Delta x - \Delta x \cdot \Delta y = 0
+x - \frac{x \cdot y} {(y + \Delta y)} \ge \Delta x
 $$
 
-4. Assume $( \Delta x \cdot \Delta y \approx 0 $) for small swaps:
+3. Merge both fractions on left hand side:
 
 $$
--x \cdot \Delta y + y \cdot \Delta x = 0
+\frac{ x \cdot (y + \Delta y) }{{(y + \Delta y)}} - \frac{x \cdot y} {(y + \Delta y)} \ge \Delta x
 $$
 
-5. Solve for $( \Delta y $):
-
 $$
-\Delta y = \frac{y \cdot \Delta x}{x}
+\frac{ x \cdot y + x \cdot \Delta y - x \cdot y}{{y + \Delta y}} \ge \Delta x
 $$
 
-6. Account for the updated reserve $(x + \Delta x$):
+5. $x \cdot y$ cancels out and we end up with the formula we wanted:
 
-$$
-\Delta y = \frac{y \cdot \Delta x}{x + \Delta x}
-$$
+   $$
+   \frac{ x \cdot \Delta y}{{y + \Delta y}} \ge \Delta x
+   $$
+
+6. Let us introduce fees as $f/F$, where fees are only applied to the incoming tokens ($\Delta y$) as if less tokens have been transfered to swap.
+
+   $$
+   \frac{ x \cdot \Delta y \cdot \frac{f}{F}}{{y + \Delta y \cdot \frac{f}{F}}} \ge \Delta x
+   $$
+
+   $$
+   \frac{ x \cdot \Delta y \cdot f}{{F \cdot (y + \Delta y \cdot \frac{f}{F}})} \ge \Delta x
+   $$
+
+7. Multiply by $F$, and we get our expression with fees
+
+   $$
+   \frac{ x \cdot \Delta y \cdot f}{{F \cdot y + \Delta y \cdot f}} \ge \Delta x
+   $$
 
 ---
 
