@@ -86,7 +86,7 @@ contract ProtocolFeeTest is Test {
 
         // price before trade: 5
 
-        Pair(pair).swap(trader, address(TOKEN_B), 100e18, 396e18); // expected out is 1% less than current price -> fee
+        Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
         // compute updated k (l2)

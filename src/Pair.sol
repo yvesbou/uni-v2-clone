@@ -18,7 +18,6 @@ library Math {
 
 // todo
 /**
- * - make latex render correctly in github readme
  * - swap out (specify amountOut instead of amountIn)
  * - deadline check
  *
@@ -106,12 +105,34 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         feeSwitchOn = feeOn_;
     }
 
+    function swapOut(address receiver, address buyingAsset, uint256 amountInMax, uint256 amountOut)
+        public
+        nonReentrant
+    {
+        if (receiver == address(0)) revert ZeroAddressNotAllowed();
+
+        if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
+
+        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+
+        uint256 computedAmountIn = buyingAsset == address(asset1)
+            ? (FEE_DENOMINATOR * reserve0_ * amountOut) / (FEE_NUMERATOR * (reserve1_ - amountOut))
+            : (FEE_DENOMINATOR * reserve1_ * amountOut) / (FEE_NUMERATOR * (reserve0_ - amountOut));
+
+        if (computedAmountIn > amountInMax) revert InsufficientAmountOut(computedAmountIn, computedAmountIn);
+
+        _swap(receiver, buyingAsset, computedAmountIn, amountOut, reserve0_, reserve1_);
+    }
+
     /// @notice Allows a user to specify which asset he/she wants to buy/sell and how much he/she should get out of it
     /// @notice swapping takes a 1% fee
     /// @param buyingAsset specifies which asset is bought
     /// @param amountIn specifies the amount which is sold
     /// @param amountOutMin specifies the amount that the user wants to get out
-    function swap(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin) public nonReentrant {
+    function swapIn(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin)
+        public
+        nonReentrant
+    {
         // CEI
 
         // checks
@@ -125,38 +146,10 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         uint256 computedAmountOut = buyingAsset == address(asset1)
             ? (amountIn * FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
             : (amountIn * reserve0_ * FEE_NUMERATOR) / (reserve1_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn);
+
         if (computedAmountOut < amountOutMin) revert InsufficientAmountOut(amountOutMin, computedAmountOut);
 
-        // check if pool has enough supply in both assets
-        if (
-            (buyingAsset == address(asset0) && computedAmountOut > reserve0_)
-                || (buyingAsset == address(asset1) && computedAmountOut > reserve1_)
-        ) {
-            revert NotEnoughLiquidityForSwap();
-        }
-
-        // effects
-        uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - computedAmountOut : reserve0_ + amountIn;
-        uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - computedAmountOut : reserve1_ + amountIn;
-        // check if K respected
-        if (reserve0_ * reserve1_ > newReserve0 * newReserve1) {
-            revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 * newReserve1);
-        }
-
-        _update(newReserve0, newReserve1);
-
-        // interactions
-        // transfer buying asset to the user & transfer selling asset to the pool
-        if (buyingAsset == address(asset0)) {
-            SafeTransferLib.safeTransfer(address(asset0), receiver, computedAmountOut);
-            asset1.transferFrom(msg.sender, address(this), amountIn);
-        } else {
-            // buyingAsset == asset0
-            SafeTransferLib.safeTransfer(address(asset1), receiver, computedAmountOut);
-            asset0.transferFrom(msg.sender, address(this), amountIn);
-        }
-
-        emit Swap(msg.sender, receiver, buyingAsset, amountIn, computedAmountOut);
+        _swap(receiver, buyingAsset, amountIn, computedAmountOut, reserve0_, reserve1_);
     }
 
     /// @notice User can supply liquidity to a pool directly
@@ -370,6 +363,46 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         reserve1 = newReserve1;
 
         blockTimestampLast = blockTimestamp;
+    }
+
+    function _swap(
+        address receiver,
+        address buyingAsset,
+        uint256 amountIn,
+        uint256 amountOut,
+        uint256 reserve0_,
+        uint256 reserve1_
+    ) internal {
+        // check if pool has enough supply in both assets
+        if (
+            (buyingAsset == address(asset0) && amountOut > reserve0_)
+                || (buyingAsset == address(asset1) && amountOut > reserve1_)
+        ) {
+            revert NotEnoughLiquidityForSwap();
+        }
+
+        // effects
+        uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - amountOut : reserve0_ + amountIn;
+        uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - amountOut : reserve1_ + amountIn;
+        // check if K respected
+        if (reserve0_ * reserve1_ > newReserve0 * newReserve1) {
+            revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 * newReserve1);
+        }
+
+        _update(newReserve0, newReserve1);
+
+        // interactions
+        // transfer buying asset to the user & transfer selling asset to the pool
+        if (buyingAsset == address(asset0)) {
+            SafeTransferLib.safeTransfer(address(asset0), receiver, amountOut);
+            asset1.transferFrom(msg.sender, address(this), amountIn);
+        } else {
+            // buyingAsset == asset0
+            SafeTransferLib.safeTransfer(address(asset1), receiver, amountOut);
+            asset0.transferFrom(msg.sender, address(this), amountIn);
+        }
+
+        emit Swap(msg.sender, receiver, buyingAsset, amountIn, amountOut);
     }
 
     function takeProtocolFee(uint256 reserve0_, uint256 reserve1_, uint256 totalSupply_) internal {

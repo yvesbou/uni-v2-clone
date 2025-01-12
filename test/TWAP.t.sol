@@ -103,7 +103,7 @@ contract TWAPTest is Test {
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
 
-        Pair(pair).swap(trader, address(TOKEN_B), 10e18, 48e18);
+        Pair(pair).swapIn(trader, address(TOKEN_B), 10e18, 48e18);
 
         ////////// temp ///////////////
         lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
@@ -163,7 +163,7 @@ contract TWAPTest is Test {
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
 
-        Pair(pair).swap(trader, address(TOKEN_B), 10e18, 48e18);
+        Pair(pair).swapIn(trader, address(TOKEN_B), 10e18, 48e18);
 
         ////////// temp ///////////////
         lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
@@ -220,7 +220,7 @@ contract TWAPTest is Test {
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
 
-        Pair(pair).swap(trader, address(TOKEN_B), 10e18, 48e18);
+        Pair(pair).swapIn(trader, address(TOKEN_B), 10e18, 48e18);
 
         ////////// temp ///////////////
         lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
@@ -258,7 +258,7 @@ contract TWAPTest is Test {
 
         vm.warp(startTime + 3 hours);
         vm.roll(startBlock + 900);
-        Pair(pair).swap(trader, address(TOKEN_B), 50e18, 176e18);
+        Pair(pair).swapIn(trader, address(TOKEN_B), 50e18, 176e18);
 
         (price0, price1,) = consumer.getPrice();
         console.log("price0 is: ");
