@@ -18,7 +18,6 @@ library Math {
 
 // todo
 /**
- * - change to not using magic numbers (see ipad)
  * - make latex render correctly in github readme
  * - swap out (specify amountOut instead of amountIn)
  * - deadline check
