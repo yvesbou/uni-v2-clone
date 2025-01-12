@@ -18,10 +18,9 @@ library Math {
 
 // todo
 /**
- * - test protocol fee
  * - change to not using magic numbers (see ipad)
- * - swap out (specify amountOut instead of amountIn)
  * - make latex render correctly in github readme
+ * - swap out (specify amountOut instead of amountIn)
  * - deadline check
  *
  * - show importance of skim with a test
@@ -43,6 +42,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     uint256 constant LP_TOKEN_PRECISION = 1e18;
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
+    uint256 constant PROTOCOL_FEE_NUMERATOR = 1;
+    uint256 constant PROTOCOL_FEE_DENOMINATOR = 6;
     uint256 constant FEE_FLASHLOAN = 100; // 1%
 
     // initial supplier needs to donate, dead shares do not completely solve inflation attack (but make them less effective)
@@ -378,9 +379,13 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
             // compute rootk
             uint256 rootK = FixedPointMathLib.sqrt(reserve0_ * reserve1_);
             // compute amount LP Tokens
-            if (rootK > kLast) {
-                uint256 nominator = totalSupply_ * (rootK - kLast_);
-                uint256 denominator = (kLast_ + 5 * rootK);
+            if (rootK > kLast_) {
+                uint256 nominator = totalSupply_ * PROTOCOL_FEE_NUMERATOR * (rootK - kLast_);
+                uint256 denominator = PROTOCOL_FEE_DENOMINATOR
+                    * (
+                        kLast_
+                            + (rootK - kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+                    );
                 // round in favor of the protocol
                 uint256 lpTokensForProtocol =
                     nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
