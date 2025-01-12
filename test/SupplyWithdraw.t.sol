@@ -65,8 +65,11 @@ contract SupplyWithdrawTest is Test {
 
         uint256 totalLPTokens = Pair(pair).totalSupply();
 
-        uint256 receivedLPTokens = FixedPointMathLib.sqrt(1000e18 * 200e18) - 1000;
+        uint256 totalSupply = FixedPointMathLib.sqrt(1000e18 * 200e18);
+        uint256 receivedLPTokens = totalSupply - 1000;
+        uint256 totalSupplyStored = Pair(pair).totalSupply();
         assertEq(receivedLPTokens, totalLPTokens - 1000);
+        assertEq(totalSupply, totalSupplyStored);
     }
 
     function test_two_supply_same_amount() public {
@@ -97,6 +100,7 @@ contract SupplyWithdrawTest is Test {
         uint256 balanceLP1 = Pair(pair).balanceOf(lp);
         uint256 balanceLP2 = Pair(pair).balanceOf(lp2);
         assertEq(balanceLP1 + 1000, balanceLP2); // first user donated 1000LP tokens
+        assertEq(balanceLP1 + 1000 + balanceLP2, totalLPTokens);
     }
 
     // first LP deposits 2x of second LP

@@ -18,10 +18,10 @@ library Math {
 
 // todo
 /**
- * - re-arrange tests
- * - change to not using magic numbers
  * - test protocol fee
+ * - change to not using magic numbers (see ipad)
  * - swap out (specify amountOut instead of amountIn)
+ * - make latex render correctly in github readme
  * - deadline check
  *
  * - show importance of skim with a test
