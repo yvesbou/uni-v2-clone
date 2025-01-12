@@ -18,13 +18,13 @@ library Math {
 
 // todo
 /**
- * - swap out (specify amountOut instead of amountIn)
- * - deadline check
+ * - swap out test
+ * - deadline check (incl test)
+ * - write a test with an inflation attack
+ * - improve documentation based on uni-v2 book
  *
  * - show importance of skim with a test
- * - write a test with an inflation attack
  *
- * - improve documentation based on uni-v2 book
  * - gas improvements (packing price, timestamp)
  */
 

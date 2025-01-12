@@ -71,7 +71,7 @@ contract SwapTest is Test {
         vm.stopPrank();
     }
 
-    function test_simple_swap() public {
+    function test_simple_swap_in() public {
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
         // see readme chapter ## Amount Out
@@ -89,5 +89,25 @@ contract SwapTest is Test {
         assertLt(price, 5e18);
 
         assertGt(TOKEN_B.balanceOf(trader), 396e18);
+    }
+
+    function test_simple_swap_out() public {
+        vm.startPrank(trader);
+        TOKEN_A.approve(pair, MAX);
+        // see readme chapter ## Amount Out
+
+        // price before trade: 5
+
+        Pair(pair).swapOut(trader, address(TOKEN_B), 102e18, 400e18); // expected out is 1% less than current price -> fee
+        vm.stopPrank();
+
+        // price after trade:
+        uint256 reserve0 = Pair(pair).reserve0();
+        uint256 reserve1 = Pair(pair).reserve1();
+        uint256 price = (reserve0 * 1e18) / reserve1;
+        console.log(price);
+        assertLt(price, 5e18);
+
+        assertEq(TOKEN_B.balanceOf(trader), 400e18);
     }
 }
