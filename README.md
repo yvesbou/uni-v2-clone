@@ -101,7 +101,7 @@ The problem with this naive approach is that a fee would be deducted even if an 
 
 ## TWAP (Time-weighted-average-price)
 
-Each Uniswap Pool as a competitive market serves as an indicator what the true price is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.
+Each Uniswap Pool as a competitive liquid market serves as an indicator what the true price of two assets is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.
 
 The following variables from the Pool contract are used to compute the TWAP: `price0CumulativeLast`, `price1CumulativeLast` and `blockTimestampLast`.
 
@@ -111,9 +111,9 @@ $$
 TWAP = \frac{p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + ... + p_n \cdot T_n}{T_0 + T_1 + T_2 + ... + T_n}
 $$
 
-where $T_x$ is the duration where price $p_x$ was recorded.
+where $T_x$ is the _duration_ where price $p_x$ was recorded.
 
-This makes intuitively sense, let imagine us 24h and 12h the price was $1 and 12h the price was $2. Without calculation we would guess that the TWAP is $1.5.
+This makes intuitively sense, let's look at an example where we observe a price for 24h. In the first 12h the price was `$1` and in the second 12h the price was `$2`. Our intuition tells us that the TWAP is `$1.5`.
 
 Let us check with the formula:
 
@@ -121,11 +121,17 @@ $$
 TWAP = \frac{1 \cdot 12 + 2 \cdot 12}{24} = \frac{36}{24} = \frac {3}{2} = 1.5
 $$
 
+The TWAP consists of the numerator which is the `weightedPrice` and the denominator which is the sum of the whole duration for which the TWAP should be computed (a sum of price durations).
+
 ### Code in Pool contract
 
-When coding smart contracts optimisation is always a requirement. So storing $p_0$ until $p_n$ is not feasible. Instead we could create a work-around, which requires that consumers of the TWAP oracle we're creating snapshot the data we store.
+When coding smart contracts optimisation is always a requirement.
 
-For our work-around we compute the nominator let's call it $weightedPrice_n = p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + ... + p_n \cdot T_n$ to the given time $t_n$ where we update the reserves (ie the ratio).
+Storing $p_0$ until $p_n$ is not feasible (looping through an array is insanely costly). Instead we should create a work-around, which requires that consumers snapshot the TWAP data we expose (later to that more).
+
+To re-iterate our goal is that when a consumer contract (who needs an oracle price) asks our contract twice for the price, it can compute the TWAP (ie. `weightedSum` over `total duration`).
+
+For our work-around we compute the nominator $weightedPrice_n = p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + ... + p_n \cdot T_n$ to the given time $t_n$ where we update the reserves (ie the ratio).
 
 So in our code
 
@@ -133,11 +139,21 @@ So in our code
 price0CumulativeLast += newReserve1 * timeElapsed / newReserve0;
 ```
 
-where `price0CumulativeLast` is $weightedPrice_n$
+where `price0CumulativeLast` is $weightedPrice_{t_n}$. Note we always have two prices (also `price1CumulativeLast`), the price of `asset0` denominated in `asset1`, and the price of `asset1` which is denominated in `asset0` (they are ofc each inverses).
 
-Let's say we want the TWAP for a time period (and we come up with arbitrary time points, where timestamp 4 is strictly greater than timestamp 2) between timestamp 2 and timestamp 4. When we snapshot a previous $weightedPrice_2$ ($p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2$) and now is timestamp 4, which is $p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + p_3 \cdot T_3 + p_4 \cdot T_4$, the difference of the two weighted prices is $p_3 \cdot T_3 + p_4 \cdot T_4$, exactly what we wanted.
+Let's say we want the TWAP for a time period between $t_2$ and $t_4$.
 
-This means we can save on storage, by only storing a cumulative price each time the reserves change.
+We snapshot at $t_2$ $weightedPrice_{t_2}$ ($p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2$) by storing the value from at $t_2$
+
+```Solidity
+price0CumulativeLast += newReserve1 * timeElapsed / newReserve0;
+```
+
+and later when it's $t_4$, we snapshot the $weightedPrice_{t_4}$ which is $p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + p_3 \cdot T_3 + p_4 \cdot T_4$
+
+The difference of the two total weighted prices is $p_3 \cdot T_3 + p_4 \cdot T_4$, which is exactly what we wanted.
+
+This means we can save on storage on the Pool contract, by only storing a cumulative price each time the reserves change.
 
 For the denominator we need the total duration of this period $T_3+T_4$, but this is easy as our first snapshot at timestamp 2 is exactly the duration smaller than timestamp 4.
 
