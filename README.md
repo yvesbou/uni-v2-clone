@@ -160,9 +160,7 @@ For the denominator we need the total duration of this period $T_3+T_4$, but thi
 $p_x$ is timestamp at time `x`.
 
 $$
-p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + p_3 \cdot T_3 + p_4 \cdot T_4 - (p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2) =
-
-p_3 \cdot T_3 + p_4 \cdot T_4
+p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2 + p_3 \cdot T_3 + p_4 \cdot T_4 - (p_0 \cdot T_0 + p_1 \cdot T_1 + p_2 \cdot T_2) = p_3 \cdot T_3 + p_4 \cdot T_4
 $$
 
 let's introduce the time difference as
