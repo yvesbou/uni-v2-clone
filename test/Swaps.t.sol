@@ -78,7 +78,7 @@ contract SwapTest is Test {
 
         // price before trade: 5
 
-        Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18); // expected out is 1% less than current price -> fee
+        Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18, block.timestamp); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
         // price after trade:
@@ -98,7 +98,7 @@ contract SwapTest is Test {
 
         // price before trade: 5
 
-        Pair(pair).swapOut(trader, address(TOKEN_B), 102e18, 400e18); // expected out is 1% less than current price -> fee
+        Pair(pair).swapOut(trader, address(TOKEN_B), 102e18, 400e18, block.timestamp); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
         // price after trade:

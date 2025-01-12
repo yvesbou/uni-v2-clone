@@ -45,7 +45,8 @@ contract ProtocolFeeTest is Test {
         //// FEE IS SET ON ////
         ///////////////////////
         ///////////////////////
-        Pair(pair).setFee(true);
+        factory.setFee(address(TOKEN_A), address(TOKEN_B), true);
+
         // let's assume token A is 5x more valuable at the start, 5B -> 1A
 
         // LPs get their tokens
@@ -86,7 +87,7 @@ contract ProtocolFeeTest is Test {
 
         // price before trade: 5
 
-        Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18); // expected out is 1% less than current price -> fee
+        Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18, block.timestamp); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
         // compute updated k (l2)

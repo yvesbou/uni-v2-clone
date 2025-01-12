@@ -7,6 +7,7 @@ import {ERC20} from "@solady-0.0.287/tokens/ERC20.sol";
 import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin-contracts-5.0.2/access/Ownable.sol";
 import {IERC3156FlashLender} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashLender.sol";
 import {IERC3156FlashBorrower} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashBorrower.sol";
 
@@ -18,8 +19,6 @@ library Math {
 
 // todo
 /**
- * - swap out test
- * - deadline check (incl test)
  * - write a test with an inflation attack
  * - improve documentation based on uni-v2 book
  *
@@ -33,7 +32,7 @@ library Math {
  *  - the precision of a supplied asset cannot change
  *  -
  */
-contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
+contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
@@ -75,11 +74,13 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     error NotEnoughLPTokens();
     error InvalidAsset(address asset);
     error InsufficientAmountOut(uint256 amountOutRequired, uint256 amountOutEffective);
+    error ExceededAmountIn(uint256 amountInMax, uint256 amountInEffective);
     error NotEnoughLiquidityForSwap();
     error ViolationConstantK(uint256 left, uint256 right);
     error FlashloanUnsupportedToken();
     error FlashloanAboveMaxAmount();
     error FlashloanFailed();
+    error SwapDeadlinePassed();
 
     event LiquiditySupplied(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
     event LiquidityRedeemed(address indexed user, uint256 indexed amount0, uint256 indexed amount1, address receiver);
@@ -91,7 +92,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         uint256 amountOut
     );
 
-    constructor(address factory_, address asset0_, address asset1_) ERC20() {
+    constructor(address factory_, address asset0_, address asset1_) ERC20() Ownable(msg.sender) {
         factory = factory_;
         asset0 = ERC20(asset0_);
         asset1 = ERC20(asset1_);
@@ -101,15 +102,17 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         precisionAsset1 = 10 ** asset1.decimals();
     }
 
-    function setFee(bool feeOn_) public {
+    function setFee(bool feeOn_) public onlyOwner {
         feeSwitchOn = feeOn_;
     }
 
-    function swapOut(address receiver, address buyingAsset, uint256 amountInMax, uint256 amountOut)
+    function swapOut(address receiver, address buyingAsset, uint256 amountInMax, uint256 amountOut, uint256 deadline)
         public
         nonReentrant
     {
         if (receiver == address(0)) revert ZeroAddressNotAllowed();
+
+        if (block.timestamp > deadline) revert SwapDeadlinePassed();
 
         if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
 
@@ -119,7 +122,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
             ? (FEE_DENOMINATOR * reserve0_ * amountOut) / (FEE_NUMERATOR * (reserve1_ - amountOut))
             : (FEE_DENOMINATOR * reserve1_ * amountOut) / (FEE_NUMERATOR * (reserve0_ - amountOut));
 
-        if (computedAmountIn > amountInMax) revert InsufficientAmountOut(computedAmountIn, computedAmountIn);
+        if (computedAmountIn > amountInMax) revert ExceededAmountIn(amountInMax, computedAmountIn);
 
         _swap(receiver, buyingAsset, computedAmountIn, amountOut, reserve0_, reserve1_);
     }
@@ -129,7 +132,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
     /// @param buyingAsset specifies which asset is bought
     /// @param amountIn specifies the amount which is sold
     /// @param amountOutMin specifies the amount that the user wants to get out
-    function swapIn(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin)
+    function swapIn(address receiver, address buyingAsset, uint256 amountIn, uint256 amountOutMin, uint256 deadline)
         public
         nonReentrant
     {
@@ -138,6 +141,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender {
         // checks
 
         if (receiver == address(0)) revert ZeroAddressNotAllowed();
+
+        if (block.timestamp > deadline) revert SwapDeadlinePassed();
 
         if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
 

@@ -46,4 +46,9 @@ contract Factory is Ownable {
             }
         }
     }
+
+    function setFee(address token0, address token1, bool feeOn_) public onlyOwner {
+        address pair = pairRegistry[token0][token1];
+        Pair(pair).setFee(feeOn_);
+    }
 }
