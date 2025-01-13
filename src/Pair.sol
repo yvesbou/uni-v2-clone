@@ -19,8 +19,8 @@ library Math {
 
 // todo
 /**
- * - write a test with an inflation attack
  * - improve documentation based on uni-v2 book
+ * - write a test with an inflation attack
  *
  * - show importance of skim with a test
  *

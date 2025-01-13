@@ -1,20 +1,28 @@
 # Uni V2 Clone (Educational Purpose)
 
-## Amount Out
+# Swap
 
-Without fees
+Swapping needs slippage protection. Users can specify the exact amount in (which they pay) or the exact amount out (which they receive). In Uniswap V2 this computation is part of the Router, in this version it's part of the pool implementation itself.
+
+## Amount In (`swapIn`)
+
+In `function swapIn(...)` users specify the amount they want to spend and a minimal amount which they require to receive at least, otherwise their transaction should fail.
+
+The formula is given without fees
 
 $$
-Δy=\frac{y \cdot Δx}{x+Δx}
+Δx=\frac{x \cdot Δy}{y+Δy}
 $$
 
-With fees = $f/F$, e.g `1%` = $99/100$
+where $\Delta y$ is the fix `amountIn` and $\Delta x$ is the amount which is required at least.
+
+When we add fees = $f/F$, e.g `1%` = $99/100$ the formula results in:
 
 $$
-Δy=\frac{y \cdot f \cdot Δx}{x \cdot F+Δx \cdot f}
+Δx=\frac{x \cdot f \cdot Δy}{y \cdot F+Δy \cdot f}
 $$
 
-As in test `test_simple_swap()` the trader wants to trade 100 of `token A` for `token B`,
+Let's look at an example from the test file `Swaps.t.sol` with test case `test_simple_swap()` where the trader wants to trade 100 of `token A` for `token B`,
 given that the reserves are 2000 for `token A` and 400 for `token B` and a fee for LPs of 1% (99/100):
 
 $$
@@ -71,6 +79,28 @@ $$
 
 $$
 \frac{ x \cdot \Delta y \cdot f}{{F \cdot y + \Delta y \cdot f}} \ge \Delta x
+$$
+
+## Amount Out (`swapOut`)
+
+In `function swapOut(...)` users specify the fixed amount they want to receive `amountOut` and a maximal amount which they feel they want to spend `amountInMax`.
+
+The mathematical expressions are very similar to the from above. For the derivation we start with the same equation, but we solve for $\Delta y$ as $\Delta x$ is given by `amountOut`:
+
+$$
+(x - \Delta x) \cdot (y + \Delta y) \ge x \cdot y
+$$
+
+With a few steps we get:
+
+$$
+Δy \ge \frac{y \cdot Δx}{x-Δx}
+$$
+
+And when we introduce fees (applied to $\Delta y$ (see step 5 in the derivation above)) we get:
+
+$$
+Δy \ge \frac{F}{f}\cdot\frac{y \cdot Δx}{x-Δx}
 $$
 
 ---
