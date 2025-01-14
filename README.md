@@ -1,8 +1,20 @@
 # Uni V2 Clone (Educational Purpose)
 
+# Supply Liquidity
+
+# Withdraw Liquidity
+
+# Price Impact of a Swap
+
+$$
+x \cdot y = k
+$$
+
+As we know from previous paragraphs this $k$ is not really constant, but in each trade, $k$ is only allowed to increase, but never decrease. $k$ decreases in fact if LPs withdraw their position as they withdraw $x$ and $y$. $k$ increases when trades happen as traders pay a fee to the pool.
+
 # Swap
 
-Swapping needs slippage protection. Users can specify the exact amount in (which they pay) or the exact amount out (which they receive). In Uniswap V2 this computation is part of the Router, in this version it's part of the pool implementation itself.
+Swapping needs slippage protection because transactions are public to sophisticated actors which can extract value from the un-finalised transactions by buying before them and sell them with a worse price. This is why users can specify the exact amount in (which they pay) or the exact amount out (which they receive). In Uniswap V2 this computation is part of the Router, in this version it's part of the pool implementation itself.
 
 ## Amount In (`swapIn`)
 
@@ -107,27 +119,113 @@ $$
 
 ## Protocol Fee
 
-The protocol wants to earn some fee on the trades but sending each time a small fee to a target contract is too gas expensive. Therefore the fee is calculated and deducted whenever an LP manages the position.
+The protocol wants to earn some fee on the trades but transfering tokens each time for a small fee to a target contract is too gas expensive. Another idea would be to deduct fees sporadicly at $t_x$ and then at $t_{x+\Delta x}$ but with this idea it could be that some LPs don't pay any fees which is not fair.
+Therefore the fee is calculated and deducted whenever an LP manages the position.
 
-Naive approach:
+Requirements:
+
+- the fee should be deducted when LPs manage their positions
+- the fee should only be worth $\frac x y$ of the fees collected by the LPs, where $x < y$
+- if liquidity grows without additional supply by new LPs from `l1` to `l2`, $\frac {y-x}{y}$ of the difference should be captured by the LPs and $\frac x y$ by the protocol
+- if the liquidity only grows by new supply, no protocol fee should be deducted
+- the protocol fee should only be in form of dilution with new LP tokens for a protocol managed address to minimize transfers
+
+By this we can state our invariant
+
+$$
+\frac {\eta}{s} = \frac {p}{d}
+$$
+
+where,
+
+$\eta$, the LP tokens emitted for the protocol (dilution for fees)
+
+$s$, totalSupply of LP tokens
+
+$d$, $\frac {y-x} {y}$ of new liquidity (mined fees) + deposited liquidity
+
+$p$, $\frac {x} {y}$ of new mined liquidity
+
+---
+
+Now that we have our variables and relationship between them, we should solve our invariant for $\eta$ (to get the amount of LP tokens for the protocol which we can put aside (mint) each time an LP manages a position).
+
+We need to formulate how liquidity is exactly measured.
+
+$$
+x \cdot y = k
+$$
+
+we define liquidity as
+
+$$
+\sqrt k
+$$
+
+Since we want to measure the growth in liquidity due to fees, we have a older and a recent $\sqrt k$
+
+For better readability we use $l_1$ as the previous liquidity and $l_2$ as the recent liquidity.
+
+Thus $d$ becomes
+
+$$
+d = \frac {y-x} {y} \cdot (l_2-l_1) + l_1
+$$
+
+$p$ is simply
+
+$$
+p = \frac {x} {y} \cdot (l_2-l_1)
+$$
+
+when we solve for $\eta$ we get
+
+$$
+\eta = \frac {x \cdot (l_2-l_1)}{y \cdot (l_1 + \frac{y-x}{y} \cdot (l_2-l_1))} \cdot s
+$$
+
+In Solidity code
+
+`PROTOCOL_FEE_NUMERATOR` = $x$
+
+`PROTOCOL_FEE_DENOMINATOR` = $y$
+
+`kLast_` = $l_1$
+
+`rootK` = $l_2$
 
 ```solidity
-function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public nonReentrant {
-    ...
-    uint256 feeForProtocol = 0;
-    if (msg.sender != factory) {
-        feeForProtocol = amountLPToken / 100;
-        transfer(factory, feeForProtocol);
+    function takeProtocolFee(uint256 reserve0_, uint256 reserve1_, uint256 totalSupply_) internal {
+        uint256 kLast_ = kLast; // savings
+        if (feeSwitchOn && kLast_ != 0) {
+            // compute rootk
+            uint256 rootK = FixedPointMathLib.sqrt(reserve0_ * reserve1_);
+            // compute amount LP Tokens
+            if (rootK > kLast_) {
+                uint256 nominator = totalSupply_ * PROTOCOL_FEE_NUMERATOR * (rootK - kLast_);
+                uint256 denominator = PROTOCOL_FEE_DENOMINATOR
+                    * (
+                        kLast_
+                            + (rootK - kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+                    );
+                // round in favor of the protocol
+                uint256 lpTokensForProtocol =
+                    nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
+                if (lpTokensForProtocol > 0) _mint(factory, lpTokensForProtocol);
+            }
+        } else {
+            kLast = 0;
+        }
     }
-    uint256 amountLPTokenAfterFee = amountLPToken - feeForProtocol;
-
-    uint256 amountOfAsset0ToReturn = reserve0_ * amountLPTokenAfterFee / totalLPTokens;
-
-    ...
-}
 ```
 
-The problem with this naive approach is that a fee would be deducted even if an LP has not earned a penny.
+In case of Uniswap V2, their equation is much simpler as they use magic numbers. The protocol fee is set fix to $\frac 1 6$ for the total collected fees (but they never turned the fee switch on).
+
+Their equation which can be looked for is (remember $\eta$ the new minted tokens for the protocol)
+
+$$
+\eta = \frac {l_2 - l_1}{l_1 + 5 \cdot l_2} \cdot s
+$$
 
 ## TWAP (Time-weighted-average-price)
 
