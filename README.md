@@ -1,16 +1,16 @@
 # Uni V2 Clone (Educational Purpose)
 
-# Supply Liquidity
-
-# Withdraw Liquidity
-
 # Price Impact of a Swap
+
+Uniswap revolutionised trading by introducing the AMM (automated market maker) with the following equation:
 
 $$
 x \cdot y = k
 $$
 
-As we know from previous paragraphs this $k$ is not really constant, but in each trade, $k$ is only allowed to increase, but never decrease. $k$ decreases in fact if LPs withdraw their position as they withdraw $x$ and $y$. $k$ increases when trades happen as traders pay a fee to the pool.
+This equation allows to trade $x$ against $y$ and vice versa while including the dynamic of supply and demand. In each trade, $k$ is only allowed to increase (fees), but never decrease. ($k$ decreases in fact if LPs withdraw their position as they withdraw $x$ and $y$.)
+
+If plotted one can see that the price impact is stronger the more the $x$ , $y$ pair is pushed out of balance.
 
 # Swap
 
@@ -117,7 +117,11 @@ $$
 
 ---
 
-## Protocol Fee
+# Supply Liquidity
+
+# Withdraw Liquidity
+
+# Protocol Fee
 
 The protocol wants to earn some fee on the trades but transfering tokens each time for a small fee to a target contract is too gas expensive. Another idea would be to deduct fees sporadicly at $t_x$ and then at $t_{x+\Delta x}$ but with this idea it could be that some LPs don't pay any fees which is not fair.
 Therefore the fee is calculated and deducted whenever an LP manages the position.
@@ -227,7 +231,7 @@ $$
 \eta = \frac {l_2 - l_1}{l_1 + 5 \cdot l_2} \cdot s
 $$
 
-## TWAP (Time-weighted-average-price)
+# TWAP (Time-weighted-average-price)
 
 Each Uniswap Pool as a competitive liquid market serves as an indicator what the true price of two assets is. Price is a ratio on how much `y` do I need to pay in order to get `x` and vice versa. In our pool we have this information. So we can serve oracle consumers with on-chain data.
 
@@ -311,7 +315,7 @@ uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 
 check out this link: https://github.com/Uniswap/v2-core/issues/96
 
-## Rounding in Favor of the protocol
+# Rounding in Favor of the protocol
 
 Whenever the code calculates fees, or a price to be received by a user, the calculation should round up. Solidity rounds by default down.
 
