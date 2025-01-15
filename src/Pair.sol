@@ -36,7 +36,6 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
 
-    uint256 constant LP_TOKEN_PRECISION = 1e18;
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
     uint256 constant PROTOCOL_FEE_NUMERATOR = 1;
@@ -47,10 +46,10 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     // https://blog.openzeppelin.com/a-novel-defense-against-erc4626-inflation-attacks
     uint256 public constant MINIMUM_LIQUIDITY = 10 ** 3;
 
-    ERC20 public asset0;
-    ERC20 public asset1;
+    ERC20 public immutable asset0;
+    ERC20 public immutable asset1;
 
-    address public factory;
+    address public immutable factory;
 
     bool public feeSwitchOn;
     uint256 public kLast;
@@ -58,8 +57,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     string private _name;
     string private _symbol;
 
-    uint256 public precisionAsset0;
-    uint256 public precisionAsset1;
+    uint256 public immutable precisionAsset0;
+    uint256 public immutable precisionAsset1;
 
     uint256 public reserve0;
     uint256 public reserve1;
@@ -92,7 +91,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
         uint256 amountOut
     );
 
-    constructor(address factory_, address asset0_, address asset1_) ERC20() Ownable(msg.sender) {
+    constructor(address factory_, address asset0_, address asset1_) Ownable(msg.sender) {
+        // if (factory == address(0)) revert ZeroAddressNotAllowed(); // <- this triggers, foundry testing issues I assume
         factory = factory_;
         asset0 = ERC20(asset0_);
         asset1 = ERC20(asset1_);

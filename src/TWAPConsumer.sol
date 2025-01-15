@@ -5,7 +5,7 @@ pragma solidity 0.8.28;
 import {Pair} from "./Pair.sol";
 
 contract TWAPConsumer {
-    Pair public pair;
+    Pair public immutable pair;
     uint256 public lastSnapshot; // timestamp (t_x), t_4-t_2 = T_4+T_3
     uint256 public lastCumulativePrice0;
     uint256 public lastCumulativePrice1;

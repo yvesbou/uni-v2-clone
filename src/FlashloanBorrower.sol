@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin-contracts-5.0.2/interfaces/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 
 contract FlashBorrower is IERC3156FlashBorrower, ReentrancyGuard {
-    IERC3156FlashLender lender;
+    IERC3156FlashLender immutable lender;
     mapping(address trustedInitiator => bool authorized) public trustedInitiators;
 
     error UntrustedLender();
