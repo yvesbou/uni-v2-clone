@@ -104,6 +104,22 @@ Mutation:
                  uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ + amountOut : reserve1_ + amountIn;
 ```
 
+## Balance movements during swap
+
+Added assert statements to fix missing checks that balances moved in the right direction after swap.
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 389
+    Result: Lived
+    Original line:
+                 uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - amountOut : reserve0_ + amountIn;
+
+    Mutated line:
+                 uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ + amountOut : reserve0_ + amountIn;
+```
+
 ## Un-initialised Pool
 
 I introduced a test, where `sync()` was called on an empty pool (not initialised by first deposit). This mutation would lead to a `panic` since vision by 0 is not allowed.

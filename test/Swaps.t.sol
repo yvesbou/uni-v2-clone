@@ -74,10 +74,13 @@ contract SwapTest is Test {
         TOKEN_A.mint(trader, 200e18);
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
-        // see readme chapter ## Amount Out
+
+        uint256 reserve0Before = Pair(pair).reserve0();
+        uint256 reserve1Before = Pair(pair).reserve1();
 
         // price before trade: 5
 
+        // see readme chapter ## Amount Out
         Pair(pair).swapIn(trader, address(TOKEN_B), 100e18, 396e18, block.timestamp); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
@@ -87,7 +90,8 @@ contract SwapTest is Test {
         uint256 price = (reserve0 * 1e18) / reserve1;
         console.log(price);
         assertLt(price, 5e18);
-
+        assertLt(reserve0, reserve0Before); // token B was bought from the pool
+        assertGt(reserve1, reserve1Before); // token A was given in the pool to receive token B
         assertGt(TOKEN_B.balanceOf(trader), 396e18);
     }
 
@@ -96,10 +100,13 @@ contract SwapTest is Test {
         TOKEN_B.mint(trader, 200e18);
         vm.startPrank(trader);
         TOKEN_B.approve(pair, MAX);
-        // see readme chapter ## Amount Out
+
+        uint256 reserve0Before = Pair(pair).reserve0();
+        uint256 reserve1Before = Pair(pair).reserve1();
 
         // price before trade: 5
 
+        // see readme chapter ## Amount Out
         Pair(pair).swapIn(trader, address(TOKEN_A), 100e18, 18e18, block.timestamp); // expected out is 1% less than current price -> fee
         vm.stopPrank();
 
@@ -109,6 +116,8 @@ contract SwapTest is Test {
         uint256 price = (reserve0 * 1e18) / reserve1;
         console.log(price);
         assertGt(price, 5e18);
+        assertLt(reserve0Before, reserve0); // token B was given in the pool to receive token A
+        assertGt(reserve1Before, reserve1); // token A was bought from the pool
 
         assertGt(TOKEN_A.balanceOf(trader), 18e18);
     }
