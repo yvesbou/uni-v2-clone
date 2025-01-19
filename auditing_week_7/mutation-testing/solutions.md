@@ -95,6 +95,23 @@ Mutation:
                  if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ == 0)
 ```
 
+## Flashloan fee
+
+I wrote an assert for the fee for a flashloan that is bigger than 100.
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 320
+    Result: Lived
+    Original line:
+                 if (amount < 100) return 100; // fee is 100 wei, people should not take such small flash loans
+
+    Mutated line:
+                 if (amount >= 100) return 100; // fee is 100 wei, people should not take such small flash loans
+
+```
+
 # False Positives
 
 ```

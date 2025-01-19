@@ -86,6 +86,9 @@ contract FlashloanTest is Test {
         // execute flashloan
         bytes memory data = "";
         Pair(pair).flashLoan(flashBorrower, address(TOKEN_A), 10e18, data);
+
+        uint256 paidFee = 10e17 - TOKEN_A.balanceOf(address(flashBorrower));
+        assertLt(paidFee, 10e17); // paid the whole balance
     }
 
     function test_flashloan_reenter_revert() public {
