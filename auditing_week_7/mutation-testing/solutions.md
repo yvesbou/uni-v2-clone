@@ -4,7 +4,7 @@ The following mutations I handled
 
 ## TWAP
 
-I wrote a test that checks that the TWAP returns the desired price
+I wrote a test that checks that the TWAP returns the desired price and both mutations would lead to a false price.
 
 ```
 Mutation:
@@ -13,15 +13,27 @@ Mutation:
     Result: Lived
 
     Original line:
-        uint256 twap0 = weightedPrices0 \* 1e18 / timeDelta;
+        uint256 twap0 = weightedPrices0 * 1e18 / timeDelta;
 
     Mutated line:
         uint256 twap0 = weightedPrices0 / 1e18 / timeDelta;
 ```
 
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 47
+    Result: Lived
+    Original line:
+                 uint256 timeDelta = latestTimestamp - lastSnapshot_;
+
+    Mutated line:
+                 uint256 timeDelta = latestTimestamp + lastSnapshot_;
+```
+
 ## Re-entrancy
 
-I added a testcase that checks for re-entrancy.
+I added a testcase that checks for re-entrancy and expects a revert, mutation would lead to a failed test (since re-entering would not cause revert).
 
 ```
 Mutation:
@@ -65,4 +77,34 @@ Mutation:
 
     Mutated line:
                  uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ + amountOut : reserve1_ + amountIn;
+```
+
+## Un-initialised Pool
+
+I introduced a test, where `sync()` was called on an empty pool (not initialised by first deposit). This mutation would lead to a `panic` since vision by 0 is not allowed.
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 357
+    Result: Lived
+    Original line:
+                 if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ != 0)
+
+    Mutated line:
+                 if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ == 0)
+```
+
+# False Positives
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 15
+    Result: Lived
+    Original line:
+                 return a < b ? a : b;
+
+    Mutated line:
+                 return a <= b ? a : b;
 ```

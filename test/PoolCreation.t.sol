@@ -38,5 +38,6 @@ contract PoolCreationTest is Test {
         factory.deployPair(address(TOKEN_A), address(TOKEN_B));
         address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
         assertTrue(address(pair) != address(0), "Address should not be zero");
+        Pair(pair).sync();
     }
 }
