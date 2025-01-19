@@ -48,8 +48,6 @@ contract SwapTest is Test {
         TOKEN_A.mint(lp2, 200e18);
         TOKEN_B.mint(lp2, 1000e18);
 
-        TOKEN_A.mint(trader, 200e18);
-
         vm.stopPrank();
 
         // first LP deposits
@@ -71,7 +69,9 @@ contract SwapTest is Test {
         vm.stopPrank();
     }
 
-    function test_simple_swap_in() public {
+    function test_simple_swap_in_tokenB() public {
+        vm.prank(owner);
+        TOKEN_A.mint(trader, 200e18);
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
         // see readme chapter ## Amount Out
@@ -91,7 +91,31 @@ contract SwapTest is Test {
         assertGt(TOKEN_B.balanceOf(trader), 396e18);
     }
 
+    function test_simple_swap_in_tokenA() public {
+        vm.prank(owner);
+        TOKEN_B.mint(trader, 200e18);
+        vm.startPrank(trader);
+        TOKEN_B.approve(pair, MAX);
+        // see readme chapter ## Amount Out
+
+        // price before trade: 5
+
+        Pair(pair).swapIn(trader, address(TOKEN_A), 100e18, 18e18, block.timestamp); // expected out is 1% less than current price -> fee
+        vm.stopPrank();
+
+        // price after trade:
+        uint256 reserve0 = Pair(pair).reserve0();
+        uint256 reserve1 = Pair(pair).reserve1();
+        uint256 price = (reserve0 * 1e18) / reserve1;
+        console.log(price);
+        assertGt(price, 5e18);
+
+        assertGt(TOKEN_A.balanceOf(trader), 18e18);
+    }
+
     function test_simple_swap_out() public {
+        vm.prank(owner);
+        TOKEN_A.mint(trader, 200e18);
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
         // see readme chapter ## Amount Out

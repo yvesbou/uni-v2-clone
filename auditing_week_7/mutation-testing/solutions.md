@@ -50,3 +50,19 @@ Mutation:
     Mutated line:
         revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 / newReserve1);
 ```
+
+## Missing Trade in other direction
+
+I fixed this by introducing a test with a swap in the other direction that wrong reserves in both directions are caught by a unit test.
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 390
+    Result: Lived
+    Original line:
+                 uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - amountOut : reserve1_ + amountIn;
+
+    Mutated line:
+                 uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ + amountOut : reserve1_ + amountIn;
+```
