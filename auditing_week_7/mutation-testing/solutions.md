@@ -31,6 +31,31 @@ Mutation:
                  uint256 timeDelta = latestTimestamp + lastSnapshot_;
 ```
 
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 63
+    Result: Lived
+    Original line:
+                 uint256 twap1 = weightedPrices1 * 1e18 / timeDelta;
+
+    Mutated line:
+                 uint256 twap1 = weightedPrices1 * 1e18 * timeDelta;
+```
+
+```
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 361
+    Result: Lived
+    Original line:
+                         price1CumulativeLast += reserve0_ * timeElapsed / reserve1_;
+
+    Mutated line:
+                         price1CumulativeLast += reserve0_ * timeElapsed * reserve1_;
+```
+
 ## Re-entrancy
 
 I added a testcase that checks for re-entrancy and expects a revert, mutation would lead to a failed test (since re-entering would not cause revert).

@@ -136,8 +136,10 @@ contract TWAPTest is Test {
         (uint256 price0, uint256 price1,) = consumer.getPrice();
 
         uint256 desiredPrice0 = (latestCumulativePrice0 - lastCumulativePrice0) * 1e18 / 1 hours;
+        uint256 desiredPrice1 = (latestCumulativePrice1 - lastCumulativePrice1) * 1e18 / 1 hours;
 
         assertEq(price0, desiredPrice0);
+        assertEq(price1, desiredPrice1);
         console.log("price0 is: ");
         console.log(price0);
         console.log("price1 is: ");
