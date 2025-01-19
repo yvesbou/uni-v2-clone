@@ -19,6 +19,21 @@ Mutation:
         uint256 twap0 = weightedPrices0 / 1e18 / timeDelta;
 ```
 
+## Re-entrancy
+
+I added a testcase that checks for re-entrancy.
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 279
+    Result: Lived
+    Original line:
+                 nonReentrant
+
+    Mutated line:
+```
+
 ## Mutation within a revert statement
 
 I see this as a helpful anecdote to make sure that the computation is as intended.

@@ -107,8 +107,8 @@ contract TWAPTest is Test {
         // snapshot price
         consumer.takeSnapshot();
         ////////////////////////////////
-        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
-        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        uint256 lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        uint256 lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
         console.log("lastCumulativePrice0");
         console.log(lastCumulativePrice0);
         console.log("lastCumulativePrice1");

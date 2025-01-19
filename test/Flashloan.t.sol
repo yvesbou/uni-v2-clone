@@ -8,6 +8,7 @@ import {Token} from "../src/Token.sol";
 import {Factory} from "../src/Factory.sol";
 import {Pair} from "../src/Pair.sol";
 import {FlashBorrower} from "../src/FlashloanBorrower.sol";
+import {ReEnterer} from "../src/ReEnterer.sol";
 
 contract FlashloanTest is Test {
     uint256 MAX = type(uint256).max;
@@ -18,6 +19,7 @@ contract FlashloanTest is Test {
     address trader = address(8);
 
     Factory public factory;
+    address pair;
     Token public TOKEN_A;
     Token public TOKEN_B;
 
@@ -33,17 +35,9 @@ contract FlashloanTest is Test {
         // setup my uni-v2 clone
         factory = new Factory();
         vm.stopPrank();
-    }
 
-    function test_deploy_pair() public {
         factory.deployPair(address(TOKEN_A), address(TOKEN_B));
-        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
-        assertTrue(address(pair) != address(0), "Address should not be zero");
-    }
-
-    function test_flashloan() public {
-        factory.deployPair(address(TOKEN_A), address(TOKEN_B));
-        address pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
+        pair = factory.pairRegistry(address(TOKEN_A), address(TOKEN_B));
 
         uint256 startTime = 1735889903;
         uint256 startBlock = 21542601;
@@ -80,7 +74,9 @@ contract FlashloanTest is Test {
         Pair(pair).provideLiquidity(1000e18, 200e18, lp2);
 
         vm.stopPrank();
+    }
 
+    function test_flashloan() public {
         vm.startPrank(trader);
         // create borrower
         FlashBorrower flashBorrower = new FlashBorrower(pair);
@@ -90,5 +86,18 @@ contract FlashloanTest is Test {
         // execute flashloan
         bytes memory data = "";
         Pair(pair).flashLoan(flashBorrower, address(TOKEN_A), 10e18, data);
+    }
+
+    function test_flashloan_reenter_revert() public {
+        vm.startPrank(trader);
+        // create borrower
+        ReEnterer reEnterer = new ReEnterer(pair);
+        // starting balance for borrower contract to pay flashloan fee
+        TOKEN_A.transfer(address(reEnterer), 10e17);
+        assertEq(reEnterer.trustedInitiators(trader), true);
+        // execute flashloan
+        bytes memory data = "";
+        vm.expectRevert();
+        Pair(pair).flashLoan(reEnterer, address(TOKEN_A), 10e18, data);
     }
 }
