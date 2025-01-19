@@ -5,6 +5,7 @@
 script = "script"
 solc = "0.8.28"
 src = "src"
+ast = true
 test = "test"
 libs = ["dependencies"]
 

@@ -1,0 +1,423 @@
+Mutation testing report:
+Number of mutations:    38
+Killed:                 21 / 38
+
+Mutations:
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Token.sol
+    Line nr: 13
+    Result: Killed
+    Original line:
+                 _mint(beneficiary, amount);
+
+    Mutated line:
+                 
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 392
+    Result: Killed
+    Original line:
+                 if (reserve0_ * reserve1_ > newReserve0 * newReserve1) {
+
+    Mutated line:
+                 if (reserve0_ * reserve1_ > newReserve0 / newReserve1) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 47
+    Result: Lived
+    Original line:
+                 uint256 timeDelta = latestTimestamp - lastSnapshot_;
+
+    Mutated line:
+                 uint256 timeDelta = latestTimestamp + lastSnapshot_;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 419
+    Result: Killed
+    Original line:
+                         uint256 nominator = totalSupply_ * PROTOCOL_FEE_NUMERATOR * (rootK - kLast_);
+
+    Mutated line:
+                         uint256 nominator = totalSupply_ * PROTOCOL_FEE_NUMERATOR * (rootK + kLast_);
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 427
+    Result: Killed
+    Original line:
+                             nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
+
+    Mutated line:
+                             nominator % denominator > 0 ? (nominator * denominator) + 1 : nominator / denominator;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 427
+    Result: Killed
+    Original line:
+                             nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
+
+    Mutated line:
+                             nominator % denominator > 0 ? (nominator / denominator) - 1 : nominator / denominator;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 422
+    Result: Killed
+    Original line:
+                                 kLast_
+
+    Mutated line:
+                                 kLast_ - (rootK - kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 62
+    Result: Lived
+    Original line:
+                 uint256 twap0 = weightedPrices0 * 1e18 / timeDelta;
+
+    Mutated line:
+                 uint256 twap0 = weightedPrices0 / 1e18 / timeDelta;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 393
+    Result: Lived
+    Original line:
+                     revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 * newReserve1);
+
+    Mutated line:
+                     revert ViolationConstantK(reserve0_ * reserve1_, newReserve0 / newReserve1);
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 176
+    Result: Killed
+    Original line:
+                 if (reserve0_ == 0 && reserve1_ == 0) {
+
+    Mutated line:
+                 if (reserve0_ != 0 && reserve1_ == 0) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 279
+    Result: Lived
+    Original line:
+                 nonReentrant
+
+    Mutated line:
+                 
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 423
+    Result: Killed
+    Original line:
+                                     + (rootK - kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+
+    Mutated line:
+                                     + (rootK + kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 390
+    Result: Lived
+    Original line:
+                 uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ - amountOut : reserve1_ + amountIn;
+
+    Mutated line:
+                 uint256 newReserve1 = buyingAsset == address(asset1) ? reserve1_ + amountOut : reserve1_ + amountIn;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 15
+    Result: Lived
+    Original line:
+                 return a < b ? a : b;
+
+    Mutated line:
+                 return a <= b ? a : b;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 122
+    Result: Killed
+    Original line:
+                     : (FEE_DENOMINATOR * reserve1_ * amountOut) / (FEE_NUMERATOR * (reserve0_ - amountOut));
+
+    Mutated line:
+                     : (FEE_DENOMINATOR * reserve1_ * amountOut) * (FEE_NUMERATOR * (reserve0_ - amountOut));
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 357
+    Result: Lived
+    Original line:
+                 if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ != 0) {
+
+    Mutated line:
+                 if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ == 0) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 290
+    Result: Killed
+    Original line:
+                 if (receiver.onFlashLoan(msg.sender, token, amount, fee, data) != keccak256("ERC3156Flashborrower.onFlashLoan"))
+
+    Mutated line:
+                 if (receiver.onFlashLoan(msg.sender, token, amount, fee, data) == keccak256("ERC3156Flashborrower.onFlashLoan"))
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 423
+    Result: Killed
+    Original line:
+                                     + (rootK - kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+
+    Mutated line:
+                                     + (rootK + kLast_) * (PROTOCOL_FEE_DENOMINATOR - PROTOCOL_FEE_NUMERATOR) / PROTOCOL_FEE_DENOMINATOR
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 360
+    Result: Killed
+    Original line:
+                         price0CumulativeLast += reserve1_ * timeElapsed / reserve0_;
+
+    Mutated line:
+                         price0CumulativeLast -= reserve1_ * timeElapsed / reserve0_;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 63
+    Result: Lived
+    Original line:
+                 uint256 twap1 = weightedPrices1 * 1e18 / timeDelta;
+
+    Mutated line:
+                 uint256 twap1 = weightedPrices1 * 1e18 * timeDelta;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 361
+    Result: Lived
+    Original line:
+                         price1CumulativeLast += reserve0_ * timeElapsed / reserve1_;
+
+    Mutated line:
+                         price1CumulativeLast += reserve0_ * timeElapsed * reserve1_;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 418
+    Result: Killed
+    Original line:
+                     if (rootK > kLast_) {
+
+    Mutated line:
+                     if (rootK <= kLast_) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 428
+    Result: Killed
+    Original line:
+                         if (lpTokensForProtocol > 0) _mint(factory, lpTokensForProtocol);
+
+    Mutated line:
+                         if (lpTokensForProtocol <= 0) _mint(factory, lpTokensForProtocol);
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 176
+    Result: Killed
+    Original line:
+                 if (reserve0_ == 0 && reserve1_ == 0) {
+
+    Mutated line:
+                 if (reserve0_ == 0 && reserve1_ != 0) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 320
+    Result: Lived
+    Original line:
+                 if (amount < 100) return 100; // fee is 100 wei, people should not take such small flash loans
+
+    Mutated line:
+                 if (amount >= 100) return 100; // fee is 100 wei, people should not take such small flash loans
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 389
+    Result: Lived
+    Original line:
+                 uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ - amountOut : reserve0_ + amountIn;
+
+    Mutated line:
+                 uint256 newReserve0 = buyingAsset == address(asset0) ? reserve0_ + amountOut : reserve0_ + amountIn;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 230
+    Result: Lived
+    Original line:
+             function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public nonReentrant {
+
+    Mutated line:
+             function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public  {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 383
+    Result: Lived
+    Original line:
+                         || (buyingAsset == address(asset1) && amountOut > reserve1_)
+
+    Mutated line:
+                         || (buyingAsset != address(asset1) && amountOut > reserve1_)
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 176
+    Result: Killed
+    Original line:
+                 if (reserve0_ == 0 && reserve1_ == 0) {
+
+    Mutated line:
+                 if (reserve0_ != 0 && reserve1_ == 0) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 427
+    Result: Killed
+    Original line:
+                             nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
+
+    Mutated line:
+                             nominator % denominator <= 0 ? (nominator / denominator) + 1 : nominator / denominator;
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 214
+    Result: Killed
+    Original line:
+                 _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
+
+    Mutated line:
+                  // supply old reserve values, supplied amounts
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 236
+    Result: Killed
+    Original line:
+                 if (lpTokenAvailable < amountLPToken) revert NotEnoughLPTokens();
+
+    Mutated line:
+                 if (lpTokenAvailable >= amountLPToken) revert NotEnoughLPTokens();
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 392
+    Result: Killed
+    Original line:
+                 if (reserve0_ * reserve1_ > newReserve0 * newReserve1) {
+
+    Mutated line:
+                 if (reserve0_ * reserve1_ <= newReserve0 * newReserve1) {
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Factory.sol
+    Line nr: 18
+    Result: Error
+    Original line:
+             constructor() Ownable(msg.sender) {}
+
+    Mutated line:
+             constructor()  {}
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 383
+    Result: Lived
+    Original line:
+                         || (buyingAsset == address(asset1) && amountOut > reserve1_)
+
+    Mutated line:
+                         || (buyingAsset == address(asset1) && amountOut <= reserve1_)
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 234
+    Result: Killed
+    Original line:
+                 if (receiverOfAssets == address(0)) revert ZeroAddressNotAllowed();
+
+    Mutated line:
+                 if (receiverOfAssets != address(0)) revert ZeroAddressNotAllowed();
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/TWAPConsumer.sol
+    Line nr: 80
+    Result: Lived
+    Original line:
+                 if (twap0 * 100 > lastTWAP0_ * 110 && twap0 * 100 < lastTWAP0_ * 90) revert ErrorTooBigPriceDifference();
+
+    Mutated line:
+                 if (twap0 * 100 <= lastTWAP0_ * 110 && twap0 * 100 < lastTWAP0_ * 90) revert ErrorTooBigPriceDifference();
+
+
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 151
+    Result: Lived
+    Original line:
+                     ? (amountIn * FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
+
+    Mutated line:
+                     ? (amountIn / FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
+
+

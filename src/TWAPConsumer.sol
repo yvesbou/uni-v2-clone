@@ -15,6 +15,7 @@ contract TWAPConsumer {
     uint256 public constant MAX_PERCENTAGE_CHANGE = 10;
 
     error ErrorOracleStale();
+    error ErrorNotUsefulTimeDelta();
     error ErrorTooBigPriceDifference();
     error NotActiveStillInitialising();
 
@@ -46,10 +47,11 @@ contract TWAPConsumer {
 
         // do calculation
         uint256 timeDelta = latestTimestamp - lastSnapshot_;
-
+        assert(timeDelta < latestTimestamp); // decision based off mutation: uint256 timeDelta = latestTimestamp + lastSnapshot_;
         if (timeDelta < 1 hours) {
             // protect against too short TWAPs
-            return (lastTWAP0_, lastTWAP1_, lastSnapshot_);
+            //return (lastTWAP0_, lastTWAP1_, lastSnapshot_);
+            revert ErrorNotUsefulTimeDelta();
         }
 
         uint256 weightedPrices0;

@@ -87,25 +87,26 @@ contract TWAPTest is Test {
         vm.roll(startBlock + 300);
 
         TWAPConsumer consumer = new TWAPConsumer(pair);
-        // snapshot price
-        consumer.takeSnapshot();
 
-        uint256 lastCumulativePrice0 = consumer.lastCumulativePrice0();
-        uint256 lastCumulativePrice1 = consumer.lastCumulativePrice1();
-        console.log("----------------------");
-        console.log("t+1");
-        console.log("lastCumulativePrice0");
-        console.log(lastCumulativePrice0);
-        console.log("lastCumulativePrice1");
-        console.log(lastCumulativePrice1);
+        /* note:
+            last cumulative prices would be still 0,
+            bc Pair._update not been triggered with >0 time elapsed
+            even though time has passed
+        */
 
         // trade
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
 
+        /* note:
+            last cumulative prices have been updated, timeElapsed = 1h
+            price of supply ratio was valid for 1h
+        */
         Pair(pair).swapIn(trader, address(TOKEN_B), 10e18, 48e18, block.timestamp);
 
-        ////////// temp ///////////////
+        // snapshot price
+        consumer.takeSnapshot();
+        ////////////////////////////////
         lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
         lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
         console.log("lastCumulativePrice0");
@@ -114,27 +115,29 @@ contract TWAPTest is Test {
         console.log(lastCumulativePrice1);
         ////////////////////////////////
 
-        // note: reserves are true (checked)
-
-        // the new price after swap remained for 1 hour
+        // the new price after first swap remained for 1 hour
         vm.warp(startTime + 2 hours);
         vm.roll(startBlock + 600);
         console.log("----------------------");
         console.log("t+2");
         Pair(pair).sync(); // cumulative price increased, as timedelta >0
 
-        ////////// temp ///////////////
-        lastCumulativePrice0 = Pair(pair).price0CumulativeLast();
-        lastCumulativePrice1 = Pair(pair).price1CumulativeLast();
-        console.log("lastCumulativePrice0");
-        console.log(lastCumulativePrice0);
-        console.log("lastCumulativePrice1");
-        console.log(lastCumulativePrice1);
+        ////////////////////////////////
+        uint256 latestCumulativePrice0 = Pair(pair).price0CumulativeLast();
+        uint256 latestCumulativePrice1 = Pair(pair).price1CumulativeLast();
+        console.log("latestCumulativePrice0");
+        console.log(latestCumulativePrice0);
+        console.log("latestCumulativePrice1");
+        console.log(latestCumulativePrice1);
         ////////////////////////////////
 
         // get price after 1h initial price, and 1h after swap price (50/50)
 
         (uint256 price0, uint256 price1,) = consumer.getPrice();
+
+        uint256 desiredPrice0 = (latestCumulativePrice0 - lastCumulativePrice0) * 1e18 / 1 hours;
+
+        assertEq(price0, desiredPrice0);
         console.log("price0 is: ");
         console.log(price0);
         console.log("price1 is: ");

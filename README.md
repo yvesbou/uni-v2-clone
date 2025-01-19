@@ -324,6 +324,18 @@ Whenever the code calculates fees, or a price to be received by a user, the calc
 uint256 lpTokensForProtocol = nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
 ```
 
+# Week 7 Assignment: Mutation Testing and Static Analysis
+
+## Mutation
+
+The first iteration yielded 55.2% killing rate (21/38). I ran the output with low sample ratio to get a first quick output `--sample-ratio 0.1 --output vertigo-output_001`.
+As a consequence of the low killing rate (Smart Contracts should aim towards 100%) I improved the unit tests.
+
+## Static Analysis
+
+Results can be found in this file [auditing_week_7/Slither.md](./auditing_week_7/Slither.md).
+A few adaptions have been made due to the result of the static analysis.
+
 # Template
 
 ## Foundry with Soldeer Template
