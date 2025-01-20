@@ -20,13 +20,11 @@ Swapping needs slippage protection because transactions are public to sophistica
 
 In `function swapIn(...)` users specify the amount they want to spend and a minimal amount which they require to receive at least, otherwise their transaction should fail.
 
-The formula is given without fees
+The formula for `amountOutMin` ($\Delta x$) based on `amountIn` ($\Delta y$) is given without fees
 
 $$
 Δx=\frac{x \cdot Δy}{y+Δy}
 $$
-
-where $\Delta y$ is the fix `amountIn` and $\Delta x$ is the amount which is required at least.
 
 When we add fees = $f/F$, e.g `1%` = $99/100$ the formula results in:
 
@@ -34,7 +32,7 @@ $$
 Δx=\frac{x \cdot f \cdot Δy}{y \cdot F+Δy \cdot f}
 $$
 
-Let's look at an example from the test file `Swaps.t.sol` with test case `test_simple_swap()` where the trader wants to trade 100 of `token A` for `token B`,
+Let's look at an example from the test file `Swaps.t.sol` with test case `test_simple_swap_in_tokenB()` where the trader wants to trade 100 of `token A` for `token B`,
 given that the reserves are 2000 for `token A` and 400 for `token B` and a fee for LPs of 1% (99/100):
 
 $$
@@ -323,6 +321,56 @@ Whenever the code calculates fees, or a price to be received by a user, the calc
 // round in favor of the protocol
 uint256 lpTokensForProtocol = nominator % denominator > 0 ? (nominator / denominator) + 1 : nominator / denominator;
 ```
+
+# Theory on Uniswap V2 and Codeblocks
+
+The question is as follows: Why is this line of code `uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));` mathematically correct?
+
+```Solidity
+    {
+    ...
+    balance0 = IERC20(_token0).balanceOf(address(this));
+    balance1 = IERC20(_token1).balanceOf(address(this));
+    }
+    uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+    uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+    require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
+    { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
+    uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
+    uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
+    require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
+    }
+```
+
+It translates in the idea "are the balances after in and out transfer enough high to account for 0.3% fee?"
+
+Here is how,
+
+Let's say we buy $x$ by spending $y$, thus `amount0In` $= 0$, and `amount1In` $\ne 0$
+
+$$
+(1000 \cdot (x - \Delta x)) (1000 \cdot (y + \Delta y) - 3 \cdot \Delta y) \ge k \cdot 1000^2
+$$
+
+which is equivalent to this statement
+
+```
+balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2)
+```
+
+next, we reformulate
+
+$$
+1000^2 (x-\Delta x)(y + \Delta y - \frac 3 {1000} \cdot \Delta y) \ge k \cdot 1000^2
+$$
+
+and we come up with the following result:
+
+$$
+(x-\Delta x)(y + \Delta y - \frac 3 {1000} \cdot \Delta y) \ge k
+$$
+
+The y-expression (which is about the tokens that get transferred in) shows that 3 parts out of 1000 (0.3% or 99.7% of the total $\Delta y$) are substracted before evaluating if constant $k$ is respected with a certain trade. If the formula is solved for $\Delta x$ one can compute the x tokens that the trader gets out of the pool.
 
 # Week 7 Assignment: Mutation Testing and Static Analysis
 
