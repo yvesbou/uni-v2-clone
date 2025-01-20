@@ -71,6 +71,20 @@ Mutation:
     Mutated line:
 ```
 
+I did not add a test case for other examples but for the following it would be required as well:
+
+```
+Mutation:
+    File: /Users/yvesboutellier/Coding/rareskills/rareskills_week_03/uni-v2-clone/src/Pair.sol
+    Line nr: 230
+    Result: Lived
+    Original line:
+             function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public nonReentrant
+
+    Mutated line:
+             function redeemLiquidity(uint256 amountLPToken, address receiverOfAssets) public
+```
+
 ## Mutation within a revert statement
 
 I see this as a helpful anecdote to make sure that the computation is as intended.
