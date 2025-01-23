@@ -12,9 +12,11 @@ This equation allows to trade $x$ against $y$ and vice versa while including the
 
 If plotted one can see that the price impact is stronger the more the $x$ , $y$ pair is pushed out of balance.
 
+This innovation allowed to spin up liquid markets for thousands of tokens with one requirement: attention.
+
 # Swap
 
-Swapping needs slippage protection because transactions are public to sophisticated actors which can extract value from the un-finalised transactions by buying before them and sell them with a worse price. This is why users can specify the exact amount in (which they pay) or the exact amount out (which they receive). In Uniswap V2 this computation is part of the Router, in this version it's part of the pool implementation itself.
+Swapping needs slippage protection because transactions are public to sophisticated actors which can extract value from the un-finalised transactions by buying before them and sell them with a worse price. This is why users can specify the exact amount in (which they pay) or the exact amount out (which they receive). In Uniswap V2 this computation is part of the Router, in this code repository it's part of the pool implementation itself.
 
 ## Amount In (`swapIn`)
 
@@ -41,7 +43,7 @@ $$
 
 ### Derivation of the above formula
 
-Let's assume x gets taken out of the pool and y gets deposited into it.
+Let's assume $x$ gets taken out of the pool and $y$ gets deposited into it.
 
 1. Start with the constant product formula after a swap:
 
@@ -116,6 +118,24 @@ $$
 ---
 
 # Supply Liquidity
+
+## First deposit
+
+The first deposit determines the starting ratio of the two assets but the total liquidity provided $\sqrt k = \sqrt {x \cdot y}$ needs to be bigger than 1000 wei, since 1000 wei are minted but assigned to the 0-address.
+
+The remaining liquidity $\sqrt {x \cdot y}$ is minted 1:1 to the LP. So if the LP deposits `1000e18` `x` and `1000e18` `y` then the LP receives `1000e18-1000` LP tokens.
+
+### Inflation Attack
+
+The "dead shares" (LP tokens assigned to the 0-address mitigates the inflation attack (not completely though)).
+
+## Subsequent deposits
+
+Subsequent deposits always need to match the current ratio of `x` and `y` tokens otherwise the under-supplied token is considered for computing the ratio, thus a smaller amount of LP tokens is emitted.
+
+Let's say the pool has 80 `x` and 20 `y` (1y token costs 4x). Total Liquidity is 40 ($\sqrt(1600)$). Let's there was just one deposit, thus 40 LP tokens.
+
+If a subsequent LP gives in 40 `x` and 5 `y` (1y token costs 8x), the resulting LP tokens for the subsequent minter is just $\frac {5}{20} \cdot 40 = 10$ - so the LP receives only 10 LP tokens, instead of e.g if we took the `x` token for taking the ratio, the subsequent LP would have received 20 LP tokens. This is to prevent dilution of already deposited LPs, since if the last was true, subsequent LPs could dump less valued tokens to receive more LP share.
 
 # Withdraw Liquidity
 
@@ -312,6 +332,25 @@ uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 ```
 
 check out this link: https://github.com/Uniswap/v2-core/issues/96
+
+## Overflow in Code
+
+Uniswap and also this implementation rely on overflow for arithmetic operations of the TWAP:
+
+```Solidity
+uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
+uint32 timeElapsed;
+unchecked {
+    // overflow in 2106, intended
+    timeElapsed = blockTimestamp - uint32(blockTimestampLast);
+}
+```
+
+and
+
+```Solidity
+
+```
 
 # Rounding in Favor of the protocol
 

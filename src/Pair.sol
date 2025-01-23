@@ -20,11 +20,8 @@ library Math {
 // todo
 /**
  * - improve documentation based on uni-v2 book
- * - write a test with an inflation attack
- *
- * - show importance of skim with a test
- *
- * - gas improvements (packing price, timestamp)
+ *       - explain over flow in twap
+ *       - explain mint/burn of univ2
  */
 
 /**
@@ -38,8 +35,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
 
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
-    uint256 constant PROTOCOL_FEE_NUMERATOR = 1;
-    uint256 constant PROTOCOL_FEE_DENOMINATOR = 6;
+    uint256 constant PROTOCOL_FEE_NUMERATOR = 1; // can change to constructor set values
+    uint256 constant PROTOCOL_FEE_DENOMINATOR = 6; // can change to constructor set values
     uint256 constant FEE_FLASHLOAN = 100; // 1%
 
     // initial supplier needs to donate, dead shares do not completely solve inflation attack (but make them less effective)
