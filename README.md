@@ -133,11 +133,25 @@ The "dead shares" (LP tokens assigned to the 0-address mitigates the inflation a
 
 Subsequent deposits always need to match the current ratio of `x` and `y` tokens otherwise the under-supplied token is considered for computing the ratio, thus a smaller amount of LP tokens is emitted.
 
-Let's say the pool has 80 `x` and 20 `y` (1y token costs 4x). Total Liquidity is 40 ($\sqrt(1600)$). Let's there was just one deposit, thus 40 LP tokens.
+Let's say the pool has 80 `x` and 20 `y` (`1y` token costs `4x`). Total Liquidity is 40 ($\sqrt(1600)$). Let's there was just one deposit, thus 40 LP tokens.
 
-If a subsequent LP gives in 40 `x` and 5 `y` (1y token costs 8x), the resulting LP tokens for the subsequent minter is just $\frac {5}{20} \cdot 40 = 10$ - so the LP receives only 10 LP tokens, instead of e.g if we took the `x` token for taking the ratio, the subsequent LP would have received 20 LP tokens. This is to prevent dilution of already deposited LPs, since if the last was true, subsequent LPs could dump less valued tokens to receive more LP share.
+If a subsequent LP gives in 40 `x` and 5 `y` (`1y` token costs `8x`), the resulting LP tokens for the subsequent minter is just $\frac {5}{20} \cdot 40 = 10$ - so the LP receives only 10 LP tokens, instead of e.g if we took the `x` token for taking the ratio, the subsequent LP would have received 20 LP tokens. This is to prevent dilution of already deposited LPs, since if the last was true, subsequent LPs could dump less valued tokens to receive more LP share.
 
 # Withdraw Liquidity
+
+Computation for determining the returning liquidity is
+
+$$
+x_{out} = x \cdot \frac {z_{return}}{z_{total}}
+$$
+
+where $z$ are the LP tokens, $z_{return}$ the user returning the LP tokens and $z_{total}$ the total supply of LP tokens.
+
+Since Solidity is always rounding down, we can leave it at that since we rounding in favor of the pool (returning less to the redeeming user).
+
+The formula for the other token $y$ is the exact same.
+
+The LP tokens that are returned are burned, so the overall supply decreases.
 
 # Protocol Fee
 
@@ -149,7 +163,7 @@ Requirements:
 - the fee should be deducted when LPs manage their positions
 - the fee should only be worth $\frac x y$ of the fees collected by the LPs, where $x < y$
 - if liquidity grows without additional supply by new LPs from `l1` to `l2`, $\frac {y-x}{y}$ of the difference should be captured by the LPs and $\frac x y$ by the protocol
-- if the liquidity only grows by new supply, no protocol fee should be deducted
+- if the liquidity only grows by new supply or decreases by withdraws, no protocol fee should be deducted
 - the protocol fee should only be in form of dilution with new LP tokens for a protocol managed address to minimize transfers
 
 By this we can state our invariant
@@ -248,6 +262,85 @@ Their equation which can be looked for is (remember $\eta$ the new minted tokens
 $$
 \eta = \frac {l_2 - l_1}{l_1 + 5 \cdot l_2} \cdot s
 $$
+
+## Walkthrough Protocol Fee Logic
+
+It might be counter-intuitive when looking at the code only shallowly that `if the liquidity only grows by new supply or decreases by withdraws, no protocol fee should be deducted` holds true. Let's go through 3 examples to show that it is actually this way.
+
+| Scenario                | Fee [y/n] |
+| ----------------------- | --------- |
+| Supply-Supply           | No Fees   |
+| Withdraw-Withdraw       | No Fees   |
+| Withdraw-Trade-Withdraw | Fees      |
+| Supply-Trade-Supply     | Fees      |
+| Supply-Trade-Withdraw   | Fees      |
+| Withdraw-Trade-Supply   | Fees      |
+
+For all scenarios the starting point is $\sqrt k = 1000$, ie. $x=y=1000$
+
+### Supply - Supply
+
+First example is the scenario that two consecutive supplies happen without any trade in between. This should result in no fees deducted by the protocol.
+
+`rootK` is always computed on the reserves before `supply` or `withdraw`.
+
+`supply(1000,1000)`
+
+0. reserves: $x=1000, y=1000$
+1. `takeFee()`
+2. `rootK` = $1000$
+3. `rootK == k_last` -> no fees
+4. `k_last` = $\sqrt{2000\cdot2000}=2000$
+
+`supply(1000,1000)`
+
+0. reserves: $x=2000, y=2000$
+1. `takeFee()`
+2. `rootK` = $2000$
+3. `rootK == k_last` -> no fees
+4. `k_last` = $\sqrt{2000\cdot2000}=2000$
+
+### Withdraw - Withdraw
+
+`withdraw(100,100)`
+
+0. reserves: $x=1000, y=1000$
+1. `takeFee()`
+2. `rootK` = $1000$
+3. `rootK == k_last` -> no fees
+4. `k_last` = $\sqrt{900 \cdot 900}=900$
+
+`withdraw(100,100)`
+
+0. reserves: $x=900, y=900$
+1. `takeFee()`
+2. `rootK` = $900$
+3. `rootK == k_last` -> no fees
+4. `k_last` = $\sqrt{800 \cdot 800}=800$
+
+### Withdraw - Trade - Withdraw
+
+`withdraw(100,100)`
+
+0. reserves: $x=1000, y=1000$
+1. `takeFee()`
+2. `rootK` = $1000$
+3. `rootK == k_last` -> no fees
+4. `k_last` = $\sqrt{900 \cdot 900}=900$
+
+`swap(...)`, $200$ `in` and $100$ `out`
+
+0. new reserves: $x=1100, y=800$ (paid very high fees, does not matter for this chain of reasoning)
+
+`withdraw(100,100)`
+
+0. reserves: $x=1100, y=800$
+1. `takeFee()`
+2. `rootK` = $\sqrt{1100 \cdot 800}=938$, `k_last` = $900$
+3. `rootK != k_last` -> fees for the protocol!!!
+4. `k_last` = $\sqrt{1100 \cdot 800}=938$
+
+There is no need in showing the other scenarios as the logic shall be clear now.
 
 # TWAP (Time-weighted-average-price)
 

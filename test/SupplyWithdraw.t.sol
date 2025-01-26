@@ -69,7 +69,7 @@ contract SupplyWithdrawTest is Test {
         uint256 receivedLPTokens = totalSupply - 1000;
         uint256 totalSupplyStored = Pair(pair).totalSupply();
         assertEq(receivedLPTokens, totalLPTokens - 1000);
-        assertEq(totalSupply, totalSupplyStored);
+        assertEq(totalSupply, totalSupplyStored); // the 1000 dead shares shall not be burned!!
     }
 
     function test_two_supply_same_amount() public {
