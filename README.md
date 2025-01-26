@@ -84,7 +84,7 @@ $$
 $$
 
 $$
-\frac{ x \cdot \Delta y \cdot f}{{F \cdot (y + \Delta y \cdot \frac{f}{F}})} \ge \Delta x
+\frac{ x \cdot \Delta y \cdot f}{{F \cdot (y + \Delta y \cdot \frac{f}{F})}} \ge \Delta x
 $$
 
 6. Multiply by $F$, and we get our expression with fees
@@ -125,15 +125,59 @@ The first deposit determines the starting ratio of the two assets but the total 
 
 The remaining liquidity $\sqrt {x \cdot y}$ is minted 1:1 to the LP. So if the LP deposits `1000e18` `x` and `1000e18` `y` then the LP receives `1000e18-1000` LP tokens.
 
-### Inflation Attack
+### Scenario Inflation Attack
 
-The "dead shares" (LP tokens assigned to the 0-address mitigates the inflation attack (not completely though)).
+Rules (without dead shares):
+
+1st deposit: LP tokens to mint = $\sqrt k$
+
+2nd deposit:
+
+$$
+\frac{x_{in}}{x} \gt \frac{y_{in}}{y} \:\: ? \:\:  \frac{y_{in}}{y} \cdot LP \:\: : \:\:   \frac{x_{in}}{x} \cdot LP
+$$
+
+Bob wants to deposit $1000 \: x$ and $1000 \: y$. Alice sees the transaction in the mempool and frontruns the first deposit with a $1 \: x$ and $1 \: y$ deposit, giving her 1 LP token. Then before the transaction of Bob she queues a second transaction which is a donation of $1000 \: x$ and $1000 \: y$ to match Bob's deposit.
+
+When Bob gets to deposit the reserves have $1001 \: x$ and $1001 \: y$ with $1$ LP token.
+
+$$
+\frac{x_{in}}{x} = \frac{1000}{1001} \cdot 1 \:LP \:\: Token = 0
+$$
+
+Since standard devision is rounding down, Bob does not get any LP token while increasing the reserves.
+
+Alice makes a profit of nearly 100%, using $1001$ and receiving $1000$ on top.
+
+### Scenario Inflation Attack mitigated
+
+The rule for the second deposit is the same, but the rule for the first deposit is sightly different.
+
+1st deposit: LP tokens to mint for depositer= $\sqrt k-1000$, mint 1000 for 0-address.
+
+So when Bob wants to deposit $1000 \: x$ and $1000 \: y$ and Alice wants to frontrun the transaction, the deposit needs to be at least $\sqrt k = 1000$. Let's assume Alice deposits $1001 \: x$ and $1001 \: y$. Receiving back 1 LP token, while address-0 has $1000$, ie. LP token supply is $1001$.
+
+Then Bob deposits 1000 each
+
+$$
+\frac{x_{in}}{x} = \frac{1000}{1001} \cdot 1001 \:LP \:\: Token = 1000
+$$
+
+So while Alice donated as first depositer 1000 Tokens each, Bob receives full equal share of the deposit like the address-0.
+
+She cannot steal Bob's deposit even if Alice also donates, let's say 1000:
+
+$$
+\frac{x_{in}}{x} = \frac{1000}{2001} \cdot 1001 \:LP \:\: Token = 500
+$$
+
+500 out of 1501 tokens gives Bob the right to reclaim 999 Tokens.
 
 ## Subsequent deposits
 
 Subsequent deposits always need to match the current ratio of `x` and `y` tokens otherwise the under-supplied token is considered for computing the ratio, thus a smaller amount of LP tokens is emitted.
 
-Let's say the pool has 80 `x` and 20 `y` (`1y` token costs `4x`). Total Liquidity is 40 ($\sqrt(1600)$). Let's there was just one deposit, thus 40 LP tokens.
+Let's say the pool has 80 `x` and 20 `y` (`1y` token costs `4x`). Total Liquidity is 40 ($\sqrt{1600}$). Let's there was just one deposit, thus 40 LP tokens.
 
 If a subsequent LP gives in 40 `x` and 5 `y` (`1y` token costs `8x`), the resulting LP tokens for the subsequent minter is just $\frac {5}{20} \cdot 40 = 10$ - so the LP receives only 10 LP tokens, instead of e.g if we took the `x` token for taking the ratio, the subsequent LP would have received 20 LP tokens. This is to prevent dilution of already deposited LPs, since if the last was true, subsequent LPs could dump less valued tokens to receive more LP share.
 
@@ -366,6 +410,30 @@ $$
 
 The TWAP consists of the numerator which is the `weightedPrice` and the denominator which is the sum of the whole duration for which the TWAP should be computed (a sum of price durations).
 
+### Overflow in TWAP
+
+Let's say our integer only goes until 16 (for simplicity to show integer math and negative modulos)
+
+`blockTimelast = 14`
+
+`block.timestamp = 18` => (casted) = `2`
+
+the time difference should give `4`
+
+so $2-14$ should be $4$
+
+$-12 \mod 16 = 4$
+
+How is $-12$ modulo 16 equal to 4?
+
+The result of this operation says "less than or equal to -12 and divisible by 16, which is -16
+
+difference between -12 and -16 is 4.
+
+$$-12-(-16) = 4$$
+
+> This is why our time variable or twap sum is allowed to overflow since we only do addition/substraction
+
 ### Code in Pool contract
 
 When coding smart contracts optimisation is always a requirement.
@@ -425,25 +493,6 @@ uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 ```
 
 check out this link: https://github.com/Uniswap/v2-core/issues/96
-
-## Overflow in Code
-
-Uniswap and also this implementation rely on overflow for arithmetic operations of the TWAP:
-
-```Solidity
-uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
-uint32 timeElapsed;
-unchecked {
-    // overflow in 2106, intended
-    timeElapsed = blockTimestamp - uint32(blockTimestampLast);
-}
-```
-
-and
-
-```Solidity
-
-```
 
 # Rounding in Favor of the protocol
 
