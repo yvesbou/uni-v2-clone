@@ -18,18 +18,6 @@ library Math {
     }
 }
 
-// todo
-/**
- * - improve documentation based on uni-v2 book
- *       - explain over flow in twap
- *       - explain mint/burn of univ2
- */
-
-/**
- * assumptions
- *  - the precision of a supplied asset cannot change
- *  -
- */
 contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
