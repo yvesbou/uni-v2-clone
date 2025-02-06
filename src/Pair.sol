@@ -44,9 +44,6 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     string private _name;
     string private _symbol;
 
-    uint256 public immutable precisionAsset0;
-    uint256 public immutable precisionAsset1;
-
     // packed slot
     uint112 public reserve0;
     uint112 public reserve1;
@@ -86,8 +83,6 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
         asset1 = ERC20(asset1_);
         _name = string(abi.encodePacked(asset0.name(), "-", asset1.name()));
         _symbol = string(abi.encodePacked(asset0.symbol(), "-", asset1.symbol()));
-        precisionAsset0 = 10 ** asset0.decimals();
-        precisionAsset1 = 10 ** asset1.decimals();
     }
 
     function setFee(bool feeOn_) public onlyOwner {
