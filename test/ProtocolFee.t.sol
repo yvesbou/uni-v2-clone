@@ -80,7 +80,8 @@ contract ProtocolFeeTest is Test {
 
     function test_protocolFee() public {
         // compute kLast (l1)
-        uint256 kLast = FixedPointMathLib.sqrt(Pair(pair).reserve0() * Pair(pair).reserve1());
+        (uint112 reserve0, uint112 reserve1,) = Pair(pair).getReserves();
+        uint256 kLast = FixedPointMathLib.sqrt(uint256(reserve0) * reserve1);
 
         vm.startPrank(trader);
         TOKEN_A.approve(pair, MAX);
@@ -91,7 +92,8 @@ contract ProtocolFeeTest is Test {
         vm.stopPrank();
 
         // compute updated k (l2)
-        uint256 kUpdated = FixedPointMathLib.sqrt(Pair(pair).reserve0() * Pair(pair).reserve1());
+        (reserve0, reserve1,) = Pair(pair).getReserves();
+        uint256 kUpdated = FixedPointMathLib.sqrt(uint256(reserve0) * reserve1);
 
         uint256 s = Pair(pair).totalSupply();
 

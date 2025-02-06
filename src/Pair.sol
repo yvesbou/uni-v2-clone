@@ -6,6 +6,7 @@ pragma solidity 0.8.28;
 import {ERC20} from "@solady-0.0.287/tokens/ERC20.sol";
 import {SafeTransferLib} from "@solady-0.0.287/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "@solady-0.0.287/utils/FixedPointMathLib.sol";
+import {UQ112x112} from "./Libraries/UQ112x112.sol";
 import {ReentrancyGuard} from "@openzeppelin-contracts-5.0.2/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin-contracts-5.0.2/access/Ownable.sol";
 import {IERC3156FlashLender} from "@openzeppelin-contracts-5.0.2/interfaces/IERC3156FlashLender.sol";
@@ -32,6 +33,7 @@ library Math {
 contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     using SafeTransferLib for ERC20;
     using FixedPointMathLib for uint256;
+    using UQ112x112 for uint224;
 
     uint256 constant FEE_NUMERATOR = 99; // 1%
     uint256 constant FEE_DENOMINATOR = 100; // 1%
@@ -57,10 +59,11 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     uint256 public immutable precisionAsset0;
     uint256 public immutable precisionAsset1;
 
-    uint256 public reserve0;
-    uint256 public reserve1;
-
-    uint256 public blockTimestampLast; // downsize to uint32 and pack with reserves?
+    // packed slot
+    uint112 public reserve0;
+    uint112 public reserve1;
+    uint32 public blockTimestampLast;
+    // slot end
 
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
@@ -113,11 +116,11 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
 
         if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
 
-        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
 
         uint256 computedAmountIn = buyingAsset == address(asset1)
-            ? (FEE_DENOMINATOR * reserve0_ * amountOut) / (FEE_NUMERATOR * (reserve1_ - amountOut))
-            : (FEE_DENOMINATOR * reserve1_ * amountOut) / (FEE_NUMERATOR * (reserve0_ - amountOut));
+            ? (FEE_DENOMINATOR * uint256(reserve0_) * amountOut) / (FEE_NUMERATOR * (uint256(reserve1_) - amountOut))
+            : (FEE_DENOMINATOR * uint256(reserve1_) * amountOut) / (FEE_NUMERATOR * (uint256(reserve0_) - amountOut));
 
         if (computedAmountIn > amountInMax) revert ExceededAmountIn(amountInMax, computedAmountIn);
 
@@ -143,11 +146,13 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
 
         if (buyingAsset != address(asset0) && buyingAsset != address(asset1)) revert InvalidAsset(buyingAsset);
 
-        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
 
         uint256 computedAmountOut = buyingAsset == address(asset1)
-            ? (amountIn * FEE_NUMERATOR * reserve1_) / (reserve0_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
-            : (amountIn * reserve0_ * FEE_NUMERATOR) / (reserve1_ * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn);
+            ? (amountIn * uint256(reserve1_) * FEE_NUMERATOR)
+                / (uint256(reserve0_) * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn)
+            : (amountIn * uint256(reserve0_) * FEE_NUMERATOR)
+                / (uint256(reserve1_) * FEE_DENOMINATOR + FEE_NUMERATOR * amountIn);
 
         if (computedAmountOut < amountOutMin) revert InsufficientAmountOut(amountOutMin, computedAmountOut);
 
@@ -165,7 +170,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
         // checks
         if (receiver == address(0)) revert ZeroAddressNotAllowed();
 
-        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
         uint256 totalSupply_ = totalSupply(); // savings
 
         takeProtocolFee(reserve0_, reserve1_, totalSupply_);
@@ -175,7 +180,7 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
             // pool empty
 
             // surplus above MINIMUM_LIQUIDITY is given to the user
-            // Question: but be sure you are rounding in the correct direction with `sqrt(...)`.
+            // lib rounds down, in favor of the protocol, that's desired
             lpTokensToMint = FixedPointMathLib.sqrt(asset0_ * asset1_) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY);
         } else {
@@ -207,8 +212,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
         // mint
         _mint(receiver, lpTokensToMint);
 
-        uint256 newReserve0 = reserve0_ + asset0_;
-        uint256 newReserve1 = reserve1_ + asset1_;
+        uint256 newReserve0 = uint256(reserve0_) + asset0_;
+        uint256 newReserve1 = uint256(reserve1_) + asset1_;
         _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
 
         if (feeSwitchOn) kLast = FixedPointMathLib.sqrt(newReserve0 * newReserve1);
@@ -235,18 +240,18 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
 
         // effect
         uint256 totalLPTokens = totalSupply();
-        (uint256 reserve0_, uint256 reserve1_) = getReserves();
+        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
 
         takeProtocolFee(reserve0_, reserve1_, totalLPTokens);
 
-        uint256 amountOfAsset0ToReturn = reserve0_ * amountLPToken / totalLPTokens;
-        uint256 amountOfAsset1ToReturn = reserve1_ * amountLPToken / totalLPTokens;
+        uint256 amountOfAsset0ToReturn = uint256(reserve0_) * amountLPToken / totalLPTokens;
+        uint256 amountOfAsset1ToReturn = uint256(reserve1_) * amountLPToken / totalLPTokens;
 
         // burn
         _burn(msg.sender, amountLPToken);
 
-        uint256 newReserve0 = reserve0_ - amountOfAsset0ToReturn;
-        uint256 newReserve1 = reserve1_ - amountOfAsset1ToReturn;
+        uint256 newReserve0 = uint256(reserve0_) - amountOfAsset0ToReturn;
+        uint256 newReserve1 = uint256(reserve1_) - amountOfAsset1ToReturn;
         _update(newReserve0, newReserve1); // supply old reserve values, supplied amounts
 
         if (feeSwitchOn) kLast = FixedPointMathLib.sqrt(newReserve0 * newReserve1);
@@ -262,8 +267,9 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     }
 
     function skim(address to) external nonReentrant {
-        uint256 surplusAsset0 = asset0.balanceOf(address(this)) - reserve0;
-        uint256 surplusAsset1 = asset1.balanceOf(address(this)) - reserve1;
+        (uint112 reserve0_, uint112 reserve1_,) = getReserves();
+        uint256 surplusAsset0 = asset0.balanceOf(address(this)) - reserve0_;
+        uint256 surplusAsset1 = asset1.balanceOf(address(this)) - reserve1_;
         SafeTransferLib.safeTransfer(address(asset0), to, surplusAsset0);
         SafeTransferLib.safeTransfer(address(asset1), to, surplusAsset1);
     }
@@ -304,8 +310,8 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
     /////////////////////////////////
     /////////////////////////////////
 
-    function getReserves() public view returns (uint256, uint256) {
-        return (reserve0, reserve1);
+    function getReserves() public view returns (uint112, uint112, uint32) {
+        return (reserve0, reserve1, blockTimestampLast);
     }
 
     function maxFlashLoan(address token) public view returns (uint256) {
@@ -343,26 +349,25 @@ contract Pair is ReentrancyGuard, ERC20, IERC3156FlashLender, Ownable {
 
     function _update(uint256 newReserve0, uint256 newReserve1) internal {
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
+
+        (uint112 reserve0_, uint112 reserve1_, uint32 blockTimestampLast_) = getReserves();
+
         uint32 timeElapsed;
         unchecked {
-            timeElapsed = blockTimestamp - uint32(blockTimestampLast); // overflow in 2106, intended
+            timeElapsed = blockTimestamp - blockTimestampLast_; // overflow in 2106, intended
         }
-
-        // savings
-        uint256 reserve0_ = reserve0;
-        uint256 reserve1_ = reserve1;
 
         if (timeElapsed > 0 && reserve0_ != 0 && reserve1_ != 0) {
             unchecked {
                 // allow overflowing
-                price0CumulativeLast += reserve1_ * timeElapsed / reserve0_;
-                price1CumulativeLast += reserve0_ * timeElapsed / reserve1_;
+                price0CumulativeLast += UQ112x112.toUQ112x112(reserve1_).uqdiv(reserve0_) * timeElapsed;
+                price1CumulativeLast += UQ112x112.toUQ112x112(reserve0_).uqdiv(reserve1_) * timeElapsed;
             }
         }
 
         // new reserves
-        reserve0 = newReserve0;
-        reserve1 = newReserve1;
+        reserve0 = uint112(newReserve0);
+        reserve1 = uint112(newReserve1);
 
         blockTimestampLast = blockTimestamp;
     }
